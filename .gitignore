@@ -135,3 +135,20 @@ fabric.properties
 *.exe
 *.out
 *.app
+
+
+#######################################
+#
+#   Project ignores
+#
+
+# binaries
+bin/
+# logs
+log/
+# temporary/test file
+tmp/
+# valgrind verbose output
+valgrind-out.txt
+# KDE Dolphin file
+.directory
