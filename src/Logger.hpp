@@ -45,6 +45,9 @@ private:
     /** Prevent assignment. */
     Logger& operator=(const Logger&);
 
+    /** Log message. */
+    void log(const char*, const char*);
+
 public:
     /** Get pointer to itself. */
     static Logger* getInstance();
@@ -54,7 +57,7 @@ public:
     /** Set level of logger severity. */
     void setLevel(Level);
 
-    /** Types of log messages. */
+    // types of log messages
     void fatal(const char*, ...);
     void error(const char*, ...);
     void warning(const char*, ...);

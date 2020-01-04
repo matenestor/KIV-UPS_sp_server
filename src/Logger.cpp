@@ -74,6 +74,14 @@ void Logger::setLevel(const Level lvl) {
 // ****************     LOG MESSAGES     **************************************
 
 
+void Logger::log(const char* severity, const char* buff) {
+    std::stringstream out;
+    out << severity << getDateTime() << buff << std::endl;
+    this->file << out.str();
+    std::cout << out.str();
+
+}
+
 void Logger::fatal(const char* msg, ...) {
     if (this->file.is_open() && this->level >= Fatal) {
         char buff[Logger::BUFF_SIZE];
@@ -85,7 +93,7 @@ void Logger::fatal(const char* msg, ...) {
         va_end(args);
 
         // log message
-        this->file << Logger::LOG_FATAL << getDateTime() << buff << std::endl;
+        this->log(Logger::LOG_FATAL, buff);
     }
 }
 
@@ -100,7 +108,7 @@ void Logger::error(const char* msg, ...) {
         va_end(args);
 
         // log message
-        this->file << Logger::LOG_ERROR << getDateTime() << buff << std::endl;
+        this->log(Logger::LOG_ERROR, buff);
     }
 }
 
@@ -115,7 +123,7 @@ void Logger::warning(const char* msg, ...) {
         va_end(args);
 
         // log message
-        this->file << Logger::LOG_WARNING << getDateTime() << buff << std::endl;
+        this->log(Logger::LOG_WARNING, buff);
     }
 }
 
@@ -130,7 +138,7 @@ void Logger::info(const char* msg, ...) {
         va_end(args);
 
         // log message
-        this->file << Logger::LOG_INFO << getDateTime() << buff << std::endl;
+        this->log(Logger::LOG_INFO, buff);
     }
 }
 
@@ -145,7 +153,7 @@ void Logger::debug(const char* msg, ...) {
         va_end(args);
 
         // log message
-        this->file << Logger::LOG_DEBUG << getDateTime() << buff << std::endl;
+        this->log(Logger::LOG_DEBUG, buff);
     }
 }
 
@@ -160,6 +168,6 @@ void Logger::trace(const char* msg, ...) {
         va_end(args);
 
         // log message
-        this->file << Logger::LOG_TRACE << getDateTime() << buff << std::endl;
+        this->log(Logger::LOG_TRACE, buff);
     }
 }
