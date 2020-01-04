@@ -15,7 +15,11 @@ enum Level {
 
 class Logger {
 private:
+    /** Size of buffer for logging. */
+    constexpr static const int BUFF_SIZE = 1024;
+    /** Log file name. */
     constexpr static const char* LOG_FNAME   = "../log/server.log";
+    // severity message constants
     constexpr static const char* LOG_FATAL   = "[FATAL]   ";
     constexpr static const char* LOG_ERROR   = "[ERROR]   ";
     constexpr static const char* LOG_WARNING = "[WARNING] ";
@@ -51,12 +55,12 @@ public:
     void setLevel(Level);
 
     /** Types of log messages. */
-    void trace(const std::string&);
-    void debug(const std::string&);
-    void info(const std::string&);
-    void warning(const std::string&);
-    void error(const std::string&);
-    void fatal(const std::string&);
+    void fatal(const char*, ...);
+    void error(const char*, ...);
+    void warning(const char*, ...);
+    void info(const char*, ...);
+    void debug(const char*, ...);
+    void trace(const char*, ...);
 };
 
 #define logger Logger::getInstance()

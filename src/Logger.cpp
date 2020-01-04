@@ -1,3 +1,4 @@
+#include <cstdarg>
 #include <iostream>
 
 #include "Helper.hpp"
@@ -17,11 +18,8 @@ Logger::Logger() {
     Logger::file.open(Logger::LOG_FNAME);
     Logger::setLevel(Info);
 
-    if (Logger::file.is_open()) {
-        std::cout << "sccs opened" << std::endl;
-    }
-    else {
-        std::cout << "fail closed" << std::endl;
+    if (!Logger::file.is_open()) {
+        std::cout << "[WARNING] Log file could not be opened. Log messages will not be writen." << std::endl;
     }
 }
 
@@ -32,13 +30,9 @@ Logger::Logger() {
  *
  */
 Logger::~Logger() {
-    Logger::file.close();
-
     if (Logger::file.is_open()) {
-        std::cout << "fail opened" << std::endl;
-    }
-    else {
-        std::cout << "sccs closed" << std::endl;
+        logger->info("Closing log file.");
+        Logger::file.close();
     }
 }
 
@@ -79,38 +73,93 @@ void Logger::setLevel(const Level lvl) {
 
 // ****************     LOG MESSAGES     **************************************
 
-void Logger::fatal(const std::string &msg) {
+
+void Logger::fatal(const char* msg, ...) {
     if (this->file.is_open() && this->level >= Fatal) {
-        this->file << Logger::LOG_FATAL << getDateTime() << msg << std::endl;
+        char buff[Logger::BUFF_SIZE];
+
+        // format msg in case of arguments
+        va_list args;
+        va_start(args, msg);
+        vsnprintf(buff, Logger::BUFF_SIZE, msg, args);
+        va_end(args);
+
+        // log message
+        this->file << Logger::LOG_FATAL << getDateTime() << buff << std::endl;
     }
 }
 
-void Logger::error(const std::string &msg) {
+void Logger::error(const char* msg, ...) {
     if (this->file.is_open() && this->level >= Error) {
-        this->file << Logger::LOG_ERROR << getDateTime() << msg << std::endl;
+        char buff[Logger::BUFF_SIZE];
+
+        // format msg in case of arguments
+        va_list args;
+        va_start(args, msg);
+        vsnprintf(buff, Logger::BUFF_SIZE, msg, args);
+        va_end(args);
+
+        // log message
+        this->file << Logger::LOG_ERROR << getDateTime() << buff << std::endl;
     }
 }
 
-void Logger::warning(const std::string &msg) {
+void Logger::warning(const char* msg, ...) {
     if (this->file.is_open() && this->level >= Warning) {
-        this->file << Logger::LOG_WARNING << getDateTime() << msg << std::endl;
+        char buff[Logger::BUFF_SIZE];
+
+        // format msg in case of arguments
+        va_list args;
+        va_start(args, msg);
+        vsnprintf(buff, Logger::BUFF_SIZE, msg, args);
+        va_end(args);
+
+        // log message
+        this->file << Logger::LOG_WARNING << getDateTime() << buff << std::endl;
     }
 }
 
-void Logger::info(const std::string &msg) {
+void Logger::info(const char* msg, ...) {
     if (this->file.is_open() && this->level >= Info) {
-        this->file << Logger::LOG_INFO << getDateTime() << msg << std::endl;
+        char buff[Logger::BUFF_SIZE];
+
+        // format msg in case of arguments
+        va_list args;
+        va_start(args, msg);
+        vsnprintf(buff, Logger::BUFF_SIZE, msg, args);
+        va_end(args);
+
+        // log message
+        this->file << Logger::LOG_INFO << getDateTime() << buff << std::endl;
     }
 }
 
-void Logger::debug(const std::string &msg) {
+void Logger::debug(const char* msg, ...) {
     if (this->file.is_open() && this->level >= Debug) {
-        this->file << Logger::LOG_DEBUG << getDateTime() << msg << std::endl;
+        char buff[Logger::BUFF_SIZE];
+
+        // format msg in case of arguments
+        va_list args;
+        va_start(args, msg);
+        vsnprintf(buff, Logger::BUFF_SIZE, msg, args);
+        va_end(args);
+
+        // log message
+        this->file << Logger::LOG_DEBUG << getDateTime() << buff << std::endl;
     }
 }
 
-void Logger::trace(const std::string &msg) {
+void Logger::trace(const char* msg, ...) {
     if (this->file.is_open() && this->level == Trace) {
-        this->file << Logger::LOG_TRACE << getDateTime() << msg << std::endl;
+        char buff[Logger::BUFF_SIZE];
+
+        // format msg in case of arguments
+        va_list args;
+        va_start(args, msg);
+        vsnprintf(buff, Logger::BUFF_SIZE, msg, args);
+        va_end(args);
+
+        // log message
+        this->file << Logger::LOG_TRACE << getDateTime() << buff << std::endl;
     }
 }
