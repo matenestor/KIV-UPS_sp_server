@@ -148,7 +148,5 @@ bin/
 log/
 # temporary/test file
 tmp/
-# valgrind verbose output
-valgrind-out.txt
 # KDE Dolphin file
 .directory

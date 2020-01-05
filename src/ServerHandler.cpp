@@ -26,12 +26,11 @@ std::unique_ptr<Server> server_init() {
     }
     catch (const std::exception& ex) {
         // if server was not created, print exception and exit
-        std::cout << "! " << ex.what() << std::endl;
         logger->fatal(ex.what());
         exit(EXIT_FAILURE);
     }
 
-    logger->info("Server initialized.");
+    logger->info("Server initialized. [port: %d]", server->getPort());
 
     return std::move(server);
 }
@@ -52,14 +51,8 @@ void server_run(std::unique_ptr<Server> server) {
         server->run();
     }
     catch (const std::exception& ex) {
-        // if server crashed, print exception and exit
-        // format error message (rewrite with C++20 std::formatter)
-        std::stringstream ss;
-        ss << ex.what() << " (" << std::strerror(errno) << ")";
-
-        // print and log error message
-        std::cout << "! " << ss.str() << std::endl;
-        logger->fatal(ex.what());
+        // if server crashed, log exception and exit
+        logger->fatal("%s (%s).", ex.what(), std::strerror(errno));
         exit(EXIT_FAILURE);
     }
 
