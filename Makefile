@@ -9,7 +9,7 @@ DIR_SRC = src/
 DIR_BIN = bin/
 
 # server sources
-_SRC_SERVER = main.cpp Server.cpp Logger.cpp
+_SRC_SERVER = main.cpp Server.cpp Logger.cpp ServerHandler.cpp
 SRC_SERVER = $(patsubst %,$(DIR_SRC)%,$(_SRC_SERVER))
 # client sources
 _SRC_CLIENT = main.cpp Client.cpp Logger.cpp

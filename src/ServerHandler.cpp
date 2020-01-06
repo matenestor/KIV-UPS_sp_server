@@ -1,11 +1,21 @@
 #include <cstring>
-#include <iostream>
 #include <memory>
-#include <sstream>
+#include <csignal>
 
 #include "Logger.hpp"
 #include "Server.hpp"
 
+
+void signalHandler(int signum) {
+    logger->info("Interrupt signal [%d] received.", signum);
+
+    isRunning = false;
+
+    /* delete logger instance and close file it uses */
+//    logger->clearInstance();
+
+//    exit(signum);
+}
 
 /******************************************************************************
  *
@@ -52,7 +62,7 @@ void server_run(std::unique_ptr<Server> server) {
     }
     catch (const std::exception& ex) {
         // if server crashed, log exception and exit
-        logger->fatal("%s (%s).", ex.what(), std::strerror(errno));
+        logger->fatal("Server crashed [%s, %s].", ex.what(), std::strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -67,6 +77,9 @@ void server_run(std::unique_ptr<Server> server) {
  *
  */
 void server_setup() {
+    // register signal SIGINT and signal handler
+    signal(SIGINT, signalHandler);
+
     // create server instance
     auto server = server_init();
     // run the server

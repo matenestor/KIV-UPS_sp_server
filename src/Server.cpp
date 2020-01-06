@@ -8,13 +8,41 @@
 
 #include <cerrno>
 #include <cstring>
-#include <iostream>
-#include <memory>
-#include <sstream>
+#include <map>
+#include <algorithm>
 
 #include "Logger.hpp"
 #include "Server.hpp"
 
+// --- TODO tmp functions for testing the chat communication way ---
+
+using MsgList = std::vector<std::string>;
+using QueueTable = std::map<int, MsgList>;
+QueueTable queue = QueueTable();
+
+void enqueue(const int& sock, const std::string& msg) {
+    if (queue.find(sock) == queue.end()) {
+        queue.insert(std::pair<int, MsgList>(sock, MsgList()));
+    }
+    queue.at(sock).emplace_back(msg);
+}
+
+std::string dequeue(const int& sock) {
+    std::string first;
+    if (queue.find(sock) == queue.end()) {
+        first = "<corrupted-sock>\n";
+    }
+    else {
+        if (queue.at(sock).begin() == queue.at(sock).end()) {
+            first = "<empty>\n";
+        }
+        else {
+            first = *queue.at(sock).begin();
+            queue.at(sock).pop_back();
+        }
+    }
+    return first;
+}
 
 // ---------- CONSTRUCTORS & DESTRUCTORS
 
@@ -36,21 +64,16 @@ Server::Server(const int p) {
     this->server_socket = 0;
     this->server_address = {0};
     this->sockets = {0};
+    this->socket_nums = std::vector<int>();
+    this->bytes_recv = 0;
+    this->bytes_send = 0;
 
-//    this->client_socket = 0;
-//    this->fd = 0;
-//    this->cbuf = 0;
-//    this->len_addr = 0;
-//    this->a2read = 0;
-//    this->peer_addr = {0};
-//    this->tests = {0};
-
+    // initialize server
     try {
-        // initialize server
         this->init();
     }
     catch (const std::exception& ex) {
-        logger->error("%s (%s). [port: %d]", ex.what(), std::strerror(errno), p);
+        logger->error("%s [%s]. [port: %d]", ex.what(), std::strerror(errno), p);
         throw std::runtime_error("Unable to create a Server instance.");
     }
 }
@@ -106,25 +129,20 @@ void Server::init() {
     // fill server socket
     this->server_address.sin_family = AF_INET;
     this->server_address.sin_port = htons(this->port);
+    // TODO implement assignable own IP address
     this->server_address.sin_addr.s_addr = INADDR_ANY;
 
     // --- INIT BIND ---
 
     // bind server socket with address
-    rv = bind(this->server_socket, (struct sockaddr *) &(this->server_address), sizeof(struct sockaddr_in));
-
-    // check if socket is bound
-    if (rv != 0) {
+    if (bind(this->server_socket, (struct sockaddr *) &(this->server_address), sizeof(struct sockaddr_in)) != 0) {
         throw std::runtime_error(std::string("Unable to bind server socket with server address. "));
     }
 
     // --- INIT LISTEN ---
 
     // start listening on server socket
-    rv = listen(this->server_socket, BACK_LOG);
-
-    // check if server is listening
-    if (rv != 0) {
+    if (listen(this->server_socket, BACK_LOG) != 0) {
         throw std::runtime_error(std::string("Unable to listen on server socket. "));
     }
 
@@ -144,46 +162,132 @@ void Server::init() {
  */
 void Server::acceptClient() {
     // client socket index for file descriptor.
-    int client_socket;
+    int client_socket = 0;
 
     // address of incoming connection
     struct sockaddr_in address_peer{};
     // length of address of incoming connection
-    socklen_t address_len;
+    socklen_t address_len{};
 
-    // accept new connection
+    // accept new connection // TODO setSocketClient()
     client_socket = accept(this->server_socket, (struct sockaddr *) &address_peer, &address_len);
-    // set new connection to file descriptor
-    FD_SET(client_socket, &(this->sockets));
 
-    logger->info("New connection on socket [%d].", client_socket);
+    if (client_socket > 0) {
+        // set new connection to file descriptor
+        FD_SET(client_socket, &(this->sockets));
+        // add new socket number to vector
+        this->socket_nums.emplace_back(client_socket);
+
+        logger->info("New connection on socket [%d].", client_socket);
+    }
+    else {
+        logger->error("New connection could not be established. [%s]", std::strerror(errno));
+    }
 }
 
 
 /******************************************************************************
  *
- *
+ *  TODO
  *
  */
-void Server::readClient(const int& fd) {
-    char cbuf;
-    int a2read;
+//void Server::readClient(const int& fd) {
+//    char cbuf;
+//    int a2read;
+//
+//    // pocet bajtu co je pripraveno ke cteni
+//    ioctl(fd, FIONREAD, &a2read);
+//    // mame co cist
+//    if (a2read > 0) {
+//        recv(fd, &cbuf, 1, 0);
+//        printf("Prijato %c\n", cbuf);
+//        read(fd, &cbuf, 1);
+//        printf("Prijato %c\n", cbuf);
+//    }
+//        // na socketu se stalo neco spatneho
+//    else {
+//        close(fd);
+//        FD_CLR(fd, &sockets);
+//        printf("Klient se odpojil a byl odebran ze sady socketu\n");
+//    }
+//}
 
-    // pocet bajtu co je pripraveno ke cteni
-    ioctl(fd, FIONREAD, &a2read);
-    // mame co cist
-    if (a2read > 0) {
-        recv(fd, &cbuf, 1, 0);
-        printf("Prijato %c\n", cbuf);
-        read(fd, &cbuf, 1);
-        printf("Prijato %c\n", cbuf);
+
+/******************************************************************************
+ *
+ *  TODO
+ *
+ */
+void Server::pingClients() {
+
+}
+
+
+// ----- SOCKET CLOSING
+
+
+void Server::closeClientSockets() {
+    for (const auto& num : socket_nums) {
+        close(num);
+        logger->debug("Client connection closed [%d]", num);
     }
-        // na socketu se stalo neco spatneho
-    else {
-        close(fd);
-        FD_CLR(fd, &sockets);
-        printf("Klient se odpojil a byl odebran ze sady socketu\n");
-    }
+}
+
+void Server::closeServerSocket() {
+    close(this->server_socket);
+    logger->debug("Server socket closed.");
+}
+
+void Server::closeSockets() {
+    this->closeClientSockets();
+    this->closeServerSocket();
+}
+
+
+// ----- CLIENT MESSAGES
+
+
+// buffer for receiving and sending TODO this location of buffer is tmp
+int BUFF_SIZE = 256;
+char buffer[256];
+
+int Server::readFromClient(const int& socket) {
+    int bytes = 0;
+
+    std::memset(buffer, '\0', BUFF_SIZE);
+    bytes = recv(socket, buffer, BUFF_SIZE, 0);
+    enqueue(socket, std::string(buffer));
+    this->bytes_recv += bytes;
+
+    logger->debug("received: %s", buffer);
+
+    return bytes;
+}
+
+int Server::writeToClient(const int& socket) {
+    int bytes = 1;
+    int len = 1;
+
+    if (queue.find(socket) != queue.end())
+        len = queue.at(socket).begin()->size();
+
+    std::memset(buffer, '\0', BUFF_SIZE);
+    strcpy(buffer, dequeue(socket).c_str());
+    bytes = send(socket, buffer, len, 0);
+    this->bytes_send += bytes;
+
+    logger->debug("sent: %s", buffer);
+
+    return bytes;
+}
+
+vecIterator::iterator Server::closeClient(vecIterator::iterator& socket) {
+    logger->debug("Closing socket [%d]", socket);
+
+    close(*socket);
+//    FD_CLR(socket, &fds_read); TODO necessary?
+
+    return this->socket_nums.erase(socket);
 }
 
 
@@ -200,60 +304,129 @@ void Server::readClient(const int& fd) {
  *
  */
 void Server::run() {
+    isRunning = true;
+
     // return value for checks of success
-    int rv;
-    // file descriptor for checks of changes
-    int fd;
+    int activity;
 
     // sockets for comparing changes on sockets
     fd_set fds_read{}, fds_write{}, fds_except{};
 
-
-
-//    // TODO ping after time t ?
-//    struct timeval tv{0};
-//    tv.tv_sec = 1;
-
-
-    std::cout << "> RUN" << std::endl;
+    // tv_sec seconds before timeout
+    struct timeval tv{0};
+    tv.tv_sec = TIMEOUT;
 
     // TODO this is one big todo now...
-//    while (1) {
-//        // create copy of client sockets, in order to compare it after select
-//        fds_read   = sockets;
-//        fds_write  = sockets;
-//        fds_except = sockets;
-//
-//        // call 'select' which finds out, if there was some change on file descriptors
-//        rv = select(FD_SETSIZE, &fds_read, &fds_write, &fds_except, nullptr);
-//
-//        if (rv < 0) {
-//            throw std::runtime_error(std::string("Server crashed. File descriptors error. "));
-//        }
-//
-//        // fd = 3 -- leave out stdin, stdout, stderr
-//        // TODO recreate to list of connections (FD_SETSIZE has value of 65536... or 64?... on Debian VM i have 1024)
-//        for (fd = 3; fd < FD_SETSIZE; fd++) {
-//
-//            // socket is in file descriptors, which can be read from
-//            if (FD_ISSET(fd, &fds_read)) {
-//                // server socket -- request for new connection
-//                if (fd == this->server_socket) {
-//                    this->acceptClient();
-//                }
-//                // client socket -- read received data
-//                else {
-//                    this->readClient(fd);
-//                }
-//            }
-//        }
-//
-//        break;
-//    }
+    while (isRunning) {
+        // create copy of client sockets, in order to compare it after select
+        fds_read   = sockets;
+        fds_write  = sockets;
+        fds_except = sockets;
+
+        // call 'select' which finds out, if there was some change on file descriptors
+        activity = select(FD_SETSIZE, &fds_read, &fds_write, &fds_except, &tv);
+
+        // ping after timeout
+        if (activity == 0) {
+//            this->pingClients();
+            logger->info("no connection messages, select release");
+        }
+
+        // TODO clear gamerooms, clients, etc??
+        // crash server after error on select
+        if (activity < 0) {
+            this->closeSockets();
+            throw std::runtime_error(std::string("select is negative.."));
+        }
+
+        // server socket -- request for new connection
+        if (FD_ISSET(this->server_socket, &fds_read)) {
+            this->acceptClient();
+        }
+
+        // loop over all connected clients
+        for (vecIterator::iterator i = socket_nums.begin(); i != socket_nums.end(); i++) {
+            if (*i > *std::max_element(this->socket_nums.begin(), this->socket_nums.end())) {
+                continue;
+            }
+
+            logger->debug(">>> DEBUG FDS START -------------------- \\/\\/\\/");
+
+            // read
+            if (FD_ISSET(*i, &fds_read)) {
+                logger->debug("client [%d] read TRUE", *i);
+
+                // TODO just receive always... bug here, client disconnection corrupts this for-loop
+//                this->readFromClient(*i);
+
+                if (this->readFromClient(*i) <= 0) {
+                    i = this->closeClient(i);
+                    continue;
+                }
+            }
+            else logger->debug("client [%d] read FALSE", *i);
+
+            // write
+            if (FD_ISSET(*i, &fds_write)) {
+                logger->debug("client [%d] write TRUE", *i);
+                if (this->writeToClient(*i) <= 0) {
+                    i = this->closeClient(i);
+                    continue;
+                }
+            }
+            else logger->debug("client [%d] write FALSE", *i);
+
+            // except
+            if (FD_ISSET(*i, &fds_except)) {
+                logger->debug("client [%d] exception TRUE", *i);
+                i = this->closeClient(i);
+                continue;
+            }
+            else logger->debug("client [%d] exception FALSE", *i);
+
+            logger->debug(">>> DEBUG FDS END ---------------------- /\\/\\/\\\n");
+        }
+
+        this->prStats();
+
+        // reset timer
+        tv.tv_sec = TIMEOUT;
+    }
+
+    this->closeSockets();
 }
+
 
 // ----- GETTERS
 
-u_int Server::getPort() {
+
+int Server::getPort() {
     return this->port;
 }
+
+void Server::prStats() {
+    logger->debug(">>> STATS ------------------------------ <<<");
+    // print statistics
+    for (const auto& num : this->socket_nums) {
+        logger->debug("client socket: [%d]", num);
+    }
+    logger->debug("bytes received: %d", this->bytes_recv);
+    logger->debug("bytes sent: %d\n\n", this->bytes_send);
+}
+
+/* WASTELAND
+
+for (fd = 3; fd < FD_SETSIZE; fd++) {
+
+            // socket is in file descriptors, which can be read from
+            if (FD_ISSET(fd, &fds_read)) {
+                if (fd == this->server_socket) {
+                    this->acceptClient();
+                }
+                // client socket -- read received data
+                else {
+                    this->readClient(fd);
+                }
+            }
+        }
+ */
