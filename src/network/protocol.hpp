@@ -5,13 +5,13 @@
 enum Opcode {
 
     // operation codes
-    OC_NUL          = 0x00, // null
-    OC_SOH          = 0x01, // start of header
-    OC_STX          = 0x02, // start of text
-    OC_ETX          = 0x03, // end of text
-    OC_EOT          = 0x04, // end of transmission
-    CC_PING         = 0x05, // enquiry
-    CC_PONG         = 0x06, // acknowledge
+    OP_NUL          = 0x00, // null
+    OP_SOH          = 0x01, // start of header
+    OP_STX          = 0x02, // start of text
+    OP_ETX          = 0x03, // end of text
+    OP_EOT          = 0x04, // end of transmission
+    OP_PING         = 0x05, // enquiry
+    OP_PONG         = 0x06, // acknowledge
 
     // client codes
     CC_CONN         = 0x07, // connect request
@@ -47,3 +47,12 @@ enum Opcode {
 
 
 #endif
+
+/*
+ *
+ * SOH
+ *
+ * EOT
+ *
+ */
+
