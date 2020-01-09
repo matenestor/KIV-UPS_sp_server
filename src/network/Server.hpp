@@ -39,11 +39,16 @@ private:
 	/** Sockets for select. */
     fd_set sockets{};
     /** Socket numbers. */
-    std::vector<int> socket_nums;
+    std::vector<int> client_sockets;
 
     // received and sent bytes count
     int bytes_recv;
     int bytes_send;
+
+    // connected, disconnected and reconnected clients
+    int cnt_connected;
+    int cnt_disconnected;
+    int cnt_reconnected;
 
     // --- METHODS ---
 
@@ -59,15 +64,15 @@ private:
     /** Pinging clients, in order to prevent unnecessary waiting for them. */
     void pingClients();
 
+    void updateClients(fd_set&, fd_set&);
+
     int readFromClient(const int&);
     int writeToClient(const int&);
-    vecIterator::iterator closeClient(vecIterator::iterator&, const char*);
+    vecIterator::iterator disconnectClient(vecIterator::iterator& socket, const char* reason);
 
     void closeSockets();
     void closeClientSockets();
     void closeServerSocket();
-
-    void prStats();
 
 public:
 	/** Constructor, which does everything. */
@@ -77,6 +82,9 @@ public:
 
     /** Runs server. */
     void run();
+    /** Print server statistics. */
+    void prStats();
+
     /** Get server's port. */
     int getPort();
 };

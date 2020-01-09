@@ -51,14 +51,13 @@ void server_run(std::unique_ptr<Server> server) {
     catch (const std::exception& ex) {
         // if server crashed, log exception and exit
         logger->fatal("Server crashed [%s, %s].", ex.what(), std::strerror(errno));
-
-        // TODO
-        logger->debug("XXX sigint FUCK");
-
         exit(EXIT_FAILURE);
     }
 
     logger->info("Server stopped successfully.");
+
+    // print statistics after successful shutdown
+    server->prStats();
 }
 
 

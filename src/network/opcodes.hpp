@@ -4,25 +4,26 @@
 
 enum Opcode {
 
-    // protocol headings
-    PRTCL_NUL   = 0x00, // null
-    PRTCL_SOH   = 0x01, // start of heading
-    PRTCL_STX   = 0x02, // start of text
-    PRTCL_ETX   = 0x03, // end of text
-    PRTCL_EOT   = 0x04, // end of transmission
-    PRTCL_ENQ   = 0x05, // enquiry
-    PRTCL_ACK   = 0x06, // acknowledge
-    PRTCL_DLE   = 0x07, // data link escape
+    // operation codes
+    OC_NUL   = 0x00, // null
+    OC_SOH   = 0x01, // start of heading
+    OC_STX   = 0x02, // start of text
+    OC_ETX   = 0x03, // end of text
+    OC_EOT   = 0x04, // end of transmission
+    OC_ENQ   = 0x05, // enquiry
+    OC_ACK   = 0x06, // acknowledge
+    OC_DLE   = 0x07, // data link escape
 
-    // user control
-    USR_NAME    = 0x08, // user name
-    USR_MVFR    = 0x09, // user move from
-    USR_MVTO    = 0x0A, // user move to
-    USR_GMOV    = 0x0B, // user game over
-    USR_AGAIN   = 0x0C, // user play again
-    USR_EXIT    = 0x0D, // user exit
-    USR_RECN    = 0x0E, // user reconnect request
-    USR_KICK    = 0x0F, // user kick
+    // client codes
+    CC_NAME    = 0x08, // user name
+    CC_CNCT    = 0x09, // user connect request
+    CC_RECN    = 0x0A, // user reconnect request
+    CC_MVFR    = 0x0B, // user move from
+    CC_MVTO    = 0x0C, // user move to
+    CC_GMOV    = 0x0D, // user game over
+    CC_AGAIN   = 0x0E, // user play again
+    CC_EXIT    = 0x0F, // user exit
+    CC_KICK    = 0x10, // user kick
 };
 
 
