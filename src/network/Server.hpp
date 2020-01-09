@@ -7,8 +7,9 @@
 #include <vector>
 
 #include "ClientManager.hpp"
+#include "PacketHandler.hpp"
 
-static bool isRunning = false;
+
 using vecIterator = std::vector<int, std::allocator<int>>;
 
 class Server {
@@ -20,10 +21,13 @@ private:
     /** Default port number. */
     constexpr static const int DEFAULT_PORT = 10000;
     /** Seconds before timeout. */
-    constexpr static const int TIMEOUT = 30;
+    constexpr static const int TIMEOUT_SEC = 30;
+    constexpr static const int TIMEOUT_USEC = 1;
 
-    /** Client manager takes care of connected/ing wait. */
-//    ClientManager cmng; TODO
+    /** Client manager takes care of client sessions. */
+//    ClientManager mngClient; // TODO
+    /** Packet handler parses received messages and creates messages for send according to protocol. */
+    PacketHandler hndPacket; // TODO
 
     /** Port number to be connected to. */
     int port;
@@ -45,6 +49,9 @@ private:
 
 	/** Initialize server. (called from constructor) */
 	void init();
+	/** Shutddown server. (called in Server::run() after while loop. */
+	void shutdown();
+
     /** Accept new client connections. */
 	void acceptClient();
 	/** Read what client sent. */
@@ -54,11 +61,11 @@ private:
 
     int readFromClient(const int&);
     int writeToClient(const int&);
-    vecIterator::iterator closeClient(vecIterator::iterator&);
+    vecIterator::iterator closeClient(vecIterator::iterator&, const char*);
 
+    void closeSockets();
     void closeClientSockets();
     void closeServerSocket();
-    void closeSockets();
 
     void prStats();
 

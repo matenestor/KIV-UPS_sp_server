@@ -1,9 +1,10 @@
-#ifndef HELPER_HPP
-#define HELPER_HPP
+#ifndef LOGGER_HELPER_HPP
+#define LOGGER_HELPER_HPP
 
 #include <ctime>
 #include <iomanip>
 #include <string>
+
 
 inline std::string getDateTime() {
     std::stringstream str;

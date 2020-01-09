@@ -1,7 +1,7 @@
 #include <cstdarg>
 #include <iostream>
 
-#include "Helper.hpp"
+#include "logger_helper.hpp"
 #include "Logger.hpp"
 
 /** Initialize logger instance to null. */

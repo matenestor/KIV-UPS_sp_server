@@ -5,8 +5,8 @@
 #include <memory>
 #include <vector>
 #include "Client.hpp"
-#include "Lobby.hpp"
-#include "GameRoom.hpp"
+#include "../game/Lobby.hpp"
+#include "../game/GameRoom.hpp"
 
 class ClientManager {
 private:

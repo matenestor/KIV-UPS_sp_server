@@ -3,26 +3,26 @@ project(KIV_UPS_sp_server)
 
 set(CMAKE_CXX_STANDARD 17)
 
-#add_executable(KIV_UPS_sp_server
-#        src/Logger.cpp src/Logger.hpp
-#        src/main.cpp
-#        src/ServerHandler.cpp src/ServerHandler.hpp
-#        src/Server.cpp src/Server.hpp
-#        src/ClientManager.cpp src/ClientManager.hpp
-#        src/Client.cpp src/Client.hpp
-#        src/Lobby.cpp src/Lobby.hpp
-#        src/GameRoom.cpp src/GameRoom.hpp
-#        src/RoomHnefatafl.cpp src/RoomHnefatafl.hpp
-#        src/Helper.hpp
-#)
-
 # main
 add_executable(KIV_UPS_sp_server
-        src/main.cpp
-        src/Server.cpp src/Server.hpp
-        src/ServerHandler.cpp src/ServerHandler.hpp
-        src/Logger.cpp src/Logger.hpp
-        src/Helper.hpp
+        src/system/Logger.cpp src/system/Logger.hpp
+        src/system/logger_helper.hpp
+        src/system/signal.hpp
+
+        src/system/main.cpp src/system/main.hpp
+        src/system/ArgumentHandler.cpp
+
+        src/network/server_handler.cpp
+        src/network/Server.cpp src/network/Server.hpp
+        src/network/PacketHandler.cpp src/network/PacketHandler.hpp
+        src/network/opcodes.hpp
+
+        src/network/ClientManager.cpp src/network/ClientManager.hpp
+        src/network/Client.cpp src/network/Client.hpp
+
+        src/game/Lobby.cpp src/game/Lobby.hpp
+        src/game/GameRoom.cpp src/game/GameRoom.hpp
+        src/game/RoomHnefatafl.cpp src/game/RoomHnefatafl.hpp
         )
 
 # tmp

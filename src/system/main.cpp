@@ -1,12 +1,22 @@
 #include <iostream>
-#include <map>
 
 #include "Logger.hpp"
-#include "ServerHandler.hpp"
+#include "main.hpp"
+#include "signal.hpp"
 
+#define DEBUG 1
+
+
+void signalHandler(int signum) {
+    logger->info("Interrupt signal received [%d].", signum);
+
+    isRunning = 0;
+}
 
 int main(int argc, char const **argv) {
-#if DEBUG
+    std::cout << "Hello, Game!" << std::endl;
+
+    #if DEBUG
     logger->setLevel(Trace);
 
 //    logger->fatal   ("test fatal    msg: string %s, int %d, float %.5f", "Ab1yZ2", 42, 3.14159);
@@ -15,9 +25,10 @@ int main(int argc, char const **argv) {
 //    logger->info    ("test info     msg: string %s, int %d, float %.5f", "Ab1yZ2", 42, 3.14159);
 //    logger->debug   ("test debug    msg: string %s, int %d, float %.5f", "Ab1yZ2", 42, 3.14159);
 //    logger->trace   ("test trace    msg: string %s, int %d, float %.5f", "Ab1yZ2", 42, 3.14159);
-#endif
+    #endif
 
-    std::cout << "Hello, Game!" << std::endl;
+    // register signal SIGINT and signal handler
+    std::signal(SIGINT, signalHandler);
 
     server_setup();
 
