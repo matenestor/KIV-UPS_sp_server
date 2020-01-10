@@ -57,10 +57,13 @@ namespace Protocol {
     static const std::string SC_NAME_USED    ("u");  // name is already used
     static const std::string SC_KICK         ("k");  // kick client
 
+    // chat code
+    static const std::string OP_CHAT         ("ch"); // chat
 
-    // client regex: (\{(<|>|rc|rr,il|rr,ig,(ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k)\})+
 
-    // server regex -- valid format: (\{(<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e)\})+
+    // client regex: (\{(<|>|rc|rr,il|rr,ig,(ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|ch:\w{1,100})\})+
+
+    // server regex -- valid format: (\{(<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:\w{1,100})\})+
     static const std::regex validFormat("(\\"+OP_SOH+"("
                                          +OP_PING+"|"
                                          +OP_PONG+"|"
@@ -68,7 +71,8 @@ namespace Protocol {
                                          +CC_RECN+OP_SEP+CC_NAME+OP_INI+"\\w{3,20}|"
                                          +CC_MOVE+OP_INI+"\\d{8}|"
                                          +CC_LEAV+"|"
-                                         +CC_EXIT
+                                         +CC_EXIT+"|"
+                                         +OP_CHAT+OP_INI+"\\w{1,100}"
                                          +")\\"+OP_EOT+")+");
 
     // server regex -- valid data: \{[\w,:<>]+\}
