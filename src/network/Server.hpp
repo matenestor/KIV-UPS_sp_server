@@ -23,11 +23,15 @@ private:
     /** Seconds before timeout. */
     constexpr static const int TIMEOUT_SEC = 30;
     constexpr static const int TIMEOUT_USEC = 1;
+    /** Default size of buffer. */
+    constexpr static const int SIZE_BUFF = 1024;
+    /** Default length of messages for receiving. */
+    constexpr static const int SIZE_RECV = SIZE_BUFF - 1;
 
-    /** Client manager takes care of client sessions. */
-//    ClientManager mngClient; // TODO
-    /** Packet handler parses received messages and creates messages for send according to protocol. */
-    PacketHandler hndPacket; // TODO
+    /** Handles received messages. */
+    PacketHandler hndPacket;
+    /** Manages connected clients. */
+    ClientManager mngClient;
 
     /** Port number to be connected to. */
     int port;
@@ -41,14 +45,17 @@ private:
     /** Socket numbers. */
     std::vector<int> client_sockets;
 
+    /** Buffer for receiving messages. */
+    char buffer[SIZE_BUFF]{};
+
     // received and sent bytes count
     int bytes_recv;
     int bytes_send;
 
     // connected, disconnected and reconnected clients
-    int cnt_connected;
-    int cnt_disconnected;
-    int cnt_reconnected;
+    int cli_connected;
+    int cli_disconnected;
+    int cli_reconnected;
 
     // --- METHODS ---
 
@@ -57,22 +64,29 @@ private:
 	/** Shutddown server. (called in Server::run() after while loop. */
 	void shutdown();
 
-    /** Accept new client connections. */
-	void acceptClient();
-	/** Read what client sent. */
-//	void readClient(const int&);
-    /** Pinging clients, in order to prevent unnecessary waiting for them. */
-    void pingClients();
-
+    /** Main loop for updating clients. */
     void updateClients(fd_set&, fd_set&);
 
-    int readFromClient(const int&);
-    int writeToClient(const int&);
+    /** Accept new client connections. */
+	void acceptClient();
+	/** Receive message from client. */
+	int readClient(const int&);
+    /** Serve client according to received message. */
+    int serveClient(const int&);
+    /** Pinging clients, in order to prevent unnecessary waiting for them. */
+    void pingClients();
+    /** Disconnect client with bad socket. */
     vecIterator::iterator disconnectClient(vecIterator::iterator& socket, const char* reason);
 
+    /** Calls methods to close both server and client sockets. */
     void closeSockets();
+    /** Close client sockets. */
     void closeClientSockets();
+    /** Close server socket. */
     void closeServerSocket();
+
+    /** Clear buffer for message receiving. */
+    void clearBuffer();
 
 public:
 	/** Constructor, which does everything. */

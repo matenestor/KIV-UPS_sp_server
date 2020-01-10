@@ -2,11 +2,10 @@
 #define CLIENT_HPP
 
 #include <string>
-#include <array>
-#include <sstream>
 
 
 enum State {
+    New          = 'n',
     Waiting      = 'w',
     Playing      = 'p',
     Disconnected = 'd'
@@ -16,7 +15,7 @@ enum State {
 class Client {
 private:
     /** Socket client is connected to. */
-    u_int socket;
+    int socket;
     /** Room where player is located. (0 == lobby) */
     int id_room;
     /** Player"s nick sent by the player. */
@@ -25,19 +24,19 @@ private:
     State state;
 
 public:
-    Client(const std::string&, u_int);
+    Client(const std::string&, int);
 
     // setters
     void setState(State s);
 
     // getters
-    [[nodiscard]] u_int getSocket() const;
+    [[nodiscard]] int getSocket() const;
     [[nodiscard]] int getIdRoom() const;
     [[nodiscard]] const std::string& getNick() const;
     [[nodiscard]] State getState() const;
 
     // printers
-    std::string toString() const;
+    [[nodiscard]] std::string toString() const;
 };
 
 #endif

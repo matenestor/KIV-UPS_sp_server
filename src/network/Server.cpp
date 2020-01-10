@@ -4,9 +4,9 @@
 // close()
 #include <unistd.h>
 
-#include <algorithm>
 #include <cerrno>
 #include <cstring>
+#include <sys/ioctl.h>
 
 #include "../system/Logger.hpp"
 #include "../system/signal.hpp"
@@ -36,9 +36,11 @@ Server::Server(const int p) {
     this->client_sockets = std::vector<int>();
     this->bytes_recv = 0;
     this->bytes_send = 0;
-    this->cnt_connected = 0;
-    this->cnt_disconnected = 0;
-    this->cnt_reconnected = 0;
+    this->cli_connected = 0;
+    this->cli_disconnected = 0;
+    this->cli_reconnected = 0;
+
+    this->clearBuffer();
 
     // initialize server
     try {
@@ -124,6 +126,71 @@ void Server::init() {
 }
 
 
+void Server::shutdown() {
+    this->closeSockets();
+}
+
+
+// ----- UPDATE
+
+
+/******************************************************************************
+ *
+ *
+ *
+ */
+void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
+    int received = 0;
+
+    // server socket -- request for new connection
+    if (FD_ISSET(this->server_socket, &fds_read)) {
+        this->acceptClient();
+    }
+
+    // loop over all connected clients
+    for (auto itr = client_sockets.begin(); itr != client_sockets.end(); ) {
+
+        // except file descriptor change
+        if (FD_ISSET(*itr, &fds_except)) {
+            itr = this->disconnectClient(itr, "except file descriptor error");
+            continue;
+        }
+
+        // read file descriptor change
+        if (FD_ISSET(*itr, &fds_read)) {
+            ioctl(*itr, FIONREAD, &received);
+
+            // if there is something in receive buffer, read
+            if (received > 0) {
+                // this variable may change to non-zero value according to what is client sending
+                received = this->readClient(*itr);
+
+                // successful message receive
+                if (received > 0) {
+                    if (this->serveClient(*itr) != 0) {
+                        itr = this->disconnectClient(itr, "violation of protocol");
+                        continue;
+                    }
+                }
+            }
+
+            // client logout
+            if (received == 0) {
+                itr = this->disconnectClient(itr, "logout");
+                continue;
+            }
+            // bad socket
+            else if (received < 0) {
+                itr = this->disconnectClient(itr, "no message received");
+                continue;
+            }
+        }
+
+        ++itr;
+    }
+}
+
+
 // ----- CLIENT MANAGING
 
 
@@ -150,7 +217,7 @@ void Server::acceptClient() {
         // add new socket number to vector, for update loop
         this->client_sockets.emplace_back(client_socket);
 
-        this->cnt_connected += 1;
+        this->cli_connected += 1;
 
         logger->info("New connection on socket [%d].", client_socket);
     }
@@ -162,77 +229,85 @@ void Server::acceptClient() {
 
 /******************************************************************************
  *
- *  TODO
+ *
  *
  */
-void Server::pingClients() {
-    logger->info("no connection messages");
+int Server::readClient(const int& socket) {
+    int received = 0;
+    int received_total = 0;
+    this->clearBuffer();
+
+    do {
+        received = recv(socket, this->buffer, SIZE_RECV, 0);
+
+        // read from client, until buffer is full (27 == longest valid message server may accept)
+        if (received_total < SIZE_RECV - 27 && received >= 0) {
+            // increment total received bytes in this reading from socket
+            received_total += received;
+            // increment total received bytes in server lifetime (even during flooding)
+            this->bytes_recv += received_total;
+        }
+        // client is flooding the server (not possible to fill 1KB buffer
+        // during turn-based game, with used protocol, like this one)
+        else {
+            received = -1;
+            received_total = -1;
+        }
+    } while (received > 0);
+
+    return received_total;
 }
 
 
-// ----- CLIENT MESSAGES
+/******************************************************************************
+ *
+ *
+ * 	@return If client was successfully served, returns 0 else return 1.
+ *
+ */
+int Server::serveClient(const int& client) {
+    // according to C standards, it is better to return 0 on success,
+    // so this code doesn't give headaches on return values
+    int valid = 1;
+    ClientData data = ClientData();
 
-
-// buffer for receiving and sending TODO this location of buffer is tmp
-
-int Server::readFromClient(const int& socket) {
-    int bytes = 0;
-    int BUFF_SIZE = 16;
-    char buffer[16];
-
-    std::memset(buffer, '\0', BUFF_SIZE);
-    bytes = recv(socket, buffer, BUFF_SIZE - 1, 0);
-
-//    if (this-hndPacket.isValidSOT(buffer_step)) {
-//        this->bytes_recv += bytes;
-//    }
-//
-//    if (this->hndPacket.isValidEOT(buffer_step)) {
-//        this->bytes_recv += bytes;
-//    }
-
-//    enqueue(socket, std::string(buffer));
-    this->bytes_recv += bytes;
-
-    logger->debug("received: [%d] [%s]", bytes, buffer);
-
-    if (std::string(buffer) == "x") {
-        // simulate disconnection
-        bytes = 0;
+    if (this->hndPacket.isValidFormat(this->buffer) == 0) {
+        this->hndPacket.parseMsg(this->buffer, data);
     }
 
-    return bytes;
+    // always should be true, when message is in valid format
+    if (!data.empty()) {
+        this->mngClient.process(client, data);
+        valid = 0; // TODO
+    }
+
+    return valid;
 }
 
-//int Server::writeToClient(const int& socket) {
-//    int bytes = 1;
-//    int len = 1;
-//
-//    if (queue.find(socket) != queue.end())
-//        len = queue.at(socket).begin()->size();
-//
-//    std::memset(buffer, '\0', BUFF_SIZE);
-//    strcpy(buffer, dequeue(socket).c_str());
-//    bytes = send(socket, buffer, len, 0);
-//    this->bytes_send += bytes;
-//
-//    logger->debug("sent: %s", buffer);
-//
-//    return bytes;
-//}
 
-
-// ----- SOCKET CLOSING
+// TODO
+void Server::pingClients() {
+    logger->info("pinging");
+}
 
 
 vecIterator::iterator Server::disconnectClient(vecIterator::iterator& socket, const char* reason) {
     close(*socket);
     FD_CLR(*socket, &(this->sockets));
-    this->cnt_disconnected += 1;
+    this->cli_disconnected += 1;
 
-    logger->info("Client on socket [%d] closed [%s],", *socket, reason);
+    logger->info("Client on socket [%d] closed [%s], [%s]", *socket, reason, std::strerror(errno));
 
     return this->client_sockets.erase(socket);
+}
+
+
+// ----- SOCKET CLOSING
+
+
+void Server::closeSockets() {
+    this->closeClientSockets();
+    this->closeServerSocket();
 }
 
 
@@ -247,77 +322,17 @@ void Server::closeServerSocket() {
     close(this->server_socket);
     FD_CLR(this->server_socket, &(this->sockets));
 
-    logger->debug("Server socket closed.");
-}
-
-
-void Server::closeSockets() {
-    this->closeClientSockets();
-    this->closeServerSocket();
+    logger->info("Server socket closed.");
 }
 
 
 // ----- OTHERS
 
 
-void Server::shutdown() {
-    this->closeSockets();
+void Server::clearBuffer() {
+    std::memset(this->buffer, 0, SIZE_BUFF);
 }
 
-
-// ----- UPDATE
-
-
-void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
-    int received = 0;
-
-    logger->debug(">>> DEBUG FDS START -------------------- \\/\\/\\/");
-
-    // server socket -- request for new connection
-    if (FD_ISSET(this->server_socket, &fds_read)) {
-        this->acceptClient();
-    }
-
-    // loop over all connected clients
-    for (auto itr = client_sockets.begin(); itr != client_sockets.end(); ) {
-        if (this->client_sockets.empty()) {
-            logger->debug("WARNING: Looping over empty socket numbers vector! breaking.. ");
-            break;
-        }
-
-        // except file descriptor change
-        if (FD_ISSET(*itr, &fds_except)) {
-            logger->debug("client [%d] exception TRUE", *itr);
-            itr = this->disconnectClient(itr, "except file descriptor error");
-            continue;
-        }
-
-        // read file descriptor change
-        if (FD_ISSET(*itr, &fds_read)) {
-            logger->debug("client [%d] read TRUE", *itr);
-
-            received = this->readFromClient(*itr);
-
-            if (received < 0) {
-                logger->debug("corrupt recv from client [%d], closing connection [%s]", *itr, std::strerror(errno));
-                itr = this->disconnectClient(itr, "no message received -- violation or timeout");
-                continue;
-            }
-            else if (received == 0) {
-                logger->debug("Client on socket [%d] logout.", *itr);
-                itr = this->disconnectClient(itr, "logout");
-                continue;
-            }
-            else {
-                logger->debug("sth was receiver successfully");
-            }
-        }
-
-        ++itr;
-    }
-
-    logger->debug(">>> DEBUG FDS END ---------------------- /\\/\\/\\\n");
-}
 
 
 
@@ -346,7 +361,6 @@ void Server::run() {
     // set server as running (this is inline volatile std::sig_atomic_t variable in signal.hpp)
     isRunning = 1;
 
-    // TODO this is one big todo now...
     while (1) {
         // create copy of client sockets, in order to compare it after select
         fds_read   = sockets;
@@ -368,7 +382,7 @@ void Server::run() {
         if (isRunning == 0)
             break;
 
-        // ping after timeout
+        // ping after timeout TODO
         if (activity == 0) {
             this->pingClients();
             continue;
@@ -390,14 +404,13 @@ void Server::run() {
 
 
 void Server::prStats() {
-    logger->debug(">>> STATS ------------------------------ <<<");
-    // print statistics
-    for (const auto& num : this->client_sockets) {
-        logger->debug("client socket: [%d]", num);
-    }
-    logger->debug("bytes received: %d", this->bytes_recv);
-    logger->debug("bytes sent: %d\n\n", this->bytes_send);
+    logger->info("Clients connected: %d",    this->cli_connected);
+    logger->info("Clients disconnected: %d", this->cli_disconnected);
+    logger->info("Clients reconnected: %d",  this->cli_reconnected);
+    logger->info("Bytes received: %d",       this->bytes_recv);
+    logger->info("Bytes sent: %d",           this->bytes_send);
 }
+
 
 // ----- GETTERS
 
@@ -405,6 +418,8 @@ void Server::prStats() {
 int Server::getPort() {
     return this->port;
 }
+
+
 
 
 
@@ -443,29 +458,6 @@ std::string dequeue(const int& sock) {
         }
     }
     return first;
-}
-
-
-
-void Server::readClient(const int& fd) {
-    char cbuf;
-    int a2read;
-
-    // pocet bajtu co je pripraveno ke cteni
-    ioctl(fd, FIONREAD, &a2read);
-    // mame co cist
-    if (a2read > 0) {
-        recv(fd, &cbuf, 1, 0);
-        printf("Prijato %c\n", cbuf);
-        read(fd, &cbuf, 1);
-        printf("Prijato %c\n", cbuf);
-    }
-        // na socketu se stalo neco spatneho
-    else {
-        close(fd);
-        FD_CLR(fd, &sockets);
-        printf("Klient se odpojil a byl odebran ze sady socketu\n");
-    }
 }
 
  */

@@ -15,7 +15,7 @@ add_executable(KIV_UPS_sp_server
         src/network/server_handler.cpp
         src/network/Server.cpp src/network/Server.hpp
         src/network/PacketHandler.cpp src/network/PacketHandler.hpp
-        src/network/opcodes.hpp
+        src/network/protocol.hpp
 
         src/network/ClientManager.cpp src/network/ClientManager.hpp
         src/network/Client.cpp src/network/Client.hpp

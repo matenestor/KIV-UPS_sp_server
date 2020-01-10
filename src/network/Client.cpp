@@ -1,4 +1,7 @@
+#include <sstream>
+
 #include "Client.hpp"
+
 
 // ---------- CONSTRUCTORS & DESTRUCTORS
 
@@ -11,11 +14,11 @@
  *
  *
  */
-Client::Client(const std::string& n, const u_int ns) {
+Client::Client(const std::string& n, const int ns) {
     this->socket = ns;
     this->id_room = 0;
     this->nick = n;
-    this->state = Waiting;
+    this->state = New;
 }
 
 
@@ -47,7 +50,7 @@ void Client::setState(State s) {
 
 // ----- GETTERS
 
-u_int Client::getSocket() const {
+int Client::getSocket() const {
     return this->socket;
 }
 
@@ -72,7 +75,7 @@ std::string Client::toString() const {
         << "], nick ["    << this->nick
         << "], state ["   << static_cast<char>(this->state)
         << "], id_room [" << this->id_room
-        << "].";
+        << "]";
 
     return out.str();
 }

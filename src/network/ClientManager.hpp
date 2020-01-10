@@ -1,24 +1,22 @@
 #ifndef CLIENTMANAGER_HPP
 #define CLIENTMANAGER_HPP
 
-
-#include <memory>
-#include <vector>
-#include "Client.hpp"
 #include "../game/Lobby.hpp"
 #include "../game/GameRoom.hpp"
+
+#include "Client.hpp"
+#include "protocol.hpp"
+
 
 class ClientManager {
 private:
     /** Vector of clients. */
     std::vector<Client> clients;
 
-    /** Lobby for waiting wait. */
+    /** Lobby takes care of waiting clients. */
     Lobby lobby;
-//    std::unique_ptr<Lobby> lobby;
-    /** GameRoom takes care of playing wait. */
+    /** GameRoom takes care of playing clients. */
     GameRoom gameRoom;
-//    std::unique_ptr<GameRoom> gameRoom;
 
 public:
     ClientManager();
@@ -28,9 +26,12 @@ public:
     /** Remove connected player. */
     void removeClient(Client*);
     /** Find connected client in private vector by socket. */
-    Client* findClientBySocket(u_int);
+    Client* findClientBySocket(int);
     /** Find connected client in private vector by nick. */
     Client* findClientByNick(const std::string&);
+
+    /** Proccess received message for current client. */
+    int process(const int&, ClientData&);
 
     // setters
     void setClientState(Client*, State);

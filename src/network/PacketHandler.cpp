@@ -1,5 +1,7 @@
+#include <string>
+
 #include "PacketHandler.hpp"
-#include "opcodes.hpp"
+#include "protocol.hpp"
 
 
 // ---------- CONSTRUCTORS & DESTRUCTORS
@@ -31,10 +33,25 @@
 
 
 
-int PacketHandler::isValidSOT(const char*) {
-    return 0;
+int PacketHandler::isValidFormat(const std::string& msg) {
+    // same reason for 1 as false like in Server::serveClient()
+    int valid = 1;
+
+    if (std::regex_match(msg, Protocol::validFormat)) {
+        valid = 0;
+    }
+
+    return valid;
 }
 
-int PacketHandler::isValidEOT(const char*) {
-    return 0;
+void PacketHandler::parseMsg(std::string msg, ClientData& data) {
+    std::smatch match;
+
+    // search every brackets with data in message and emplace it to vector
+    while (regex_search(msg, match, Protocol::dataFormat)) {
+        for (const auto & subm: match) {
+            data.emplace_back(match.str().c_str());
+        }
+        msg = match.suffix();
+    }
 }

@@ -1,6 +1,8 @@
 #include <iostream>
-#include "ClientManager.hpp"
+
 #include "../system/Logger.hpp"
+#include "ClientManager.hpp"
+
 
 // ---------- CONSTRUCTORS & DESTRUCTORS
 
@@ -15,8 +17,6 @@
  */
 ClientManager::ClientManager() {
     this->clients = std::vector<Client>();
-//    this->lobby = std::make_unique<Lobby>();
-//    this->gameRoom = std::make_unique<GameRoom>();
 }
 
 
@@ -63,7 +63,7 @@ void ClientManager::removeClient(Client* cli) {
     }
 }
 
-Client* ClientManager::findClientBySocket(const u_int socket) {
+Client* ClientManager::findClientBySocket(const int socket) {
     Client* wanted = nullptr;
 
     for (auto& cli : this->clients) {
@@ -89,6 +89,21 @@ Client* ClientManager::findClientByNick(const std::string& nick) {
 
     return wanted;
 }
+
+
+/******************************************************************************
+ *
+ *
+ *
+ */
+int ClientManager::process(const int& client_num, ClientData& data) {
+    for (const auto& msg: data) {
+        logger->debug("processing msg [%s] for client [%d]", msg.c_str(), client_num);
+    }
+
+    return 0;
+}
+
 
 // ----- SETTERS
 

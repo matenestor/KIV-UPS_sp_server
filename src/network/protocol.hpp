@@ -1,58 +1,79 @@
-#ifndef OPCODES_HPP
-#define OPCODES_HPP
+#ifndef PROTOCOL_HPP
+#define PROTOCOL_HPP
+
+#include <regex>
 
 
-enum Opcode {
+using ClientData = std::vector<std::string>;
+
+namespace Protocol {
+
+    // examples of protocol message
+
+    // C -> S
+    // {c,n:nick}
+    // {m:07050710}
+
+    // S -> C
+    // {rr,il}
+    // {rr,ig,ty,op:onick,pf:0..9}
+    // -> {rr,ig,ty,op:onick,pf:0000000000111111111122222222223333333333444444444455555555550000000000111111111122222222223333333333}
+    // {ig,ty,op:nick}
 
     // operation codes
-    OP_NUL          = 0x00, // null
-    OP_SOH          = 0x01, // start of header
-    OP_STX          = 0x02, // start of text
-    OP_ETX          = 0x03, // end of text
-    OP_EOT          = 0x04, // end of transmission
-    OP_PING         = 0x05, // enquiry
-    OP_PONG         = 0x06, // acknowledge
+    static const std::string OP_SOH     ("{"); // start of header
+    static const std::string OP_EOT     ("}"); // end of transmission
+    static const std::string OP_SEP     (","); // separator
+    static const std::string OP_INI     (":"); // initializer of data
+    static const std::string OP_PING    (">"); // enquiry
+    static const std::string OP_PONG    ("<"); // acknowledge
 
     // client codes
-    CC_CONN         = 0x07, // connect request
-    CC_RECN         = 0x08, // reconnect request
-    CC_NAME         = 0x09, // name
-    CC_MOVE         = 0x0A, // move
-    CC_LEAV         = 0x0B, // leave game
-    CC_EXIT         = 0x0C, // exit connection
+    static const std::string CC_CONN    ("c"); // connect request
+    static const std::string CC_RECN    ("r"); // reconnect request
+    static const std::string CC_NAME    ("n"); // name
+    static const std::string CC_MOVE    ("m"); // move
+    static const std::string CC_LEAV    ("l"); // leave game
+    static const std::string CC_EXIT    ("e"); // exit connection
 
     // server codes
-    SC_RESP_CONN    = 0x0D, // response connect
-    SC_RESP_RECN    = 0x0E, // response reconnect
-    SC_RESP_LEAVE   = 0x0F, // response leave
-    SC_IN_LOBBY     = 0x10, // client moved to lobby
-    SC_IN_GAME      = 0x11, // client moved to game
-    SC_MV_VALID     = 0x12, // valid move
-    SC_MV_INVALID   = 0x13, // invalid move
-    SC_TURN_YOU     = 0x14, // your's turn message
-    SC_TURN_OPN     = 0x15, // opponent's turn message
-    SC_PLAYFIELD    = 0x16, // playfield
-    SC_GO_WIN       = 0x17, // game over win message
-    SC_GO_LOSS      = 0x18, // game over loss message
-    SC_OPN_NAME     = 0x19, // opponent's name
-    SC_OPN_MOVE     = 0x1A, // opponent's move
-    SC_OPN_LEAVE    = 0x1B, // opponent left the game
-    SC_OPN_EXIT     = 0x1C, // opponent disconnected
-    SC_OPN_RECN     = 0x1D, // opponent reconnected
-    SC_MANY_PLRS    = 0x1E, // too many players message
-    SC_NAME_USED    = 0x1F, // name is alredy used
-    SC_KICK         = 0x20, // kick client
+    static const std::string SC_RESP_CONN    ("rc"); // response connect
+    static const std::string SC_RESP_RECN    ("rr"); // response reconnect
+    static const std::string SC_RESP_LEAVE   ("rl"); // response leave
+    static const std::string SC_IN_LOBBY     ("il"); // client moved to lobby
+    static const std::string SC_IN_GAME      ("ig"); // client moved to game
+    static const std::string SC_MV_VALID     ("mv"); // valid move
+    static const std::string SC_TURN_YOU     ("ty"); // your's turn
+    static const std::string SC_TURN_OPN     ("to"); // opponent's turn
+    static const std::string SC_PLAYFIELD    ("pf"); // playfield
+    static const std::string SC_GO_WIN       ("gw"); // game over win
+    static const std::string SC_GO_LOSS      ("gl"); // game over loss
+    static const std::string SC_OPN_NAME     ("on"); // opponent's name
+    static const std::string SC_OPN_MOVE     ("om"); // opponent's move
+    static const std::string SC_OPN_LEAVE    ("ol"); // opponent left the game
+    static const std::string SC_OPN_EXIT     ("oe"); // opponent disconnected
+    static const std::string SC_OPN_RECN     ("or"); // opponent reconnected
+    static const std::string SC_MANY_PLRS    ("t");  // too many players message
+    static const std::string SC_NAME_USED    ("u");  // name is already used
+    static const std::string SC_KICK         ("k");  // kick client
 
+
+    // client regex: (\{(<|>|rc|rr,il|rr,ig,(ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k)\})+
+
+    // server regex -- valid format: (\{(<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e)\})+
+    static const std::regex validFormat("(\\"+OP_SOH+"("
+                                         +OP_PING+"|"
+                                         +OP_PONG+"|"
+                                         +CC_CONN+OP_SEP+CC_NAME+OP_INI+"\\w{3,20}|"
+                                         +CC_RECN+OP_SEP+CC_NAME+OP_INI+"\\w{3,20}|"
+                                         +CC_MOVE+OP_INI+"\\d{8}|"
+                                         +CC_LEAV+"|"
+                                         +CC_EXIT
+                                         +")\\"+OP_EOT+")+");
+
+    // server regex -- valid data: \{[\w,:<>]+\}
+    static const std::regex dataFormat("\\"+OP_SOH+"[\\w"+OP_SEP+OP_INI+OP_PING+OP_PONG+"]+\\"+OP_EOT);
 };
 
 
 #endif
-
-/*
- *
- * SOH
- *
- * EOT
- *
- */
-
