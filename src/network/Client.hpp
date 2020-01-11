@@ -5,10 +5,11 @@
 
 
 enum State {
-    New          = 'n',
-    Waiting      = 'w',
-    Playing      = 'p',
-    Disconnected = 'd'
+    New            = 'n',
+    Waiting        = 'w',
+    PlayingTurn    = 't',
+    PlayingStandby = 's',
+    Disconnected   = 'd'
 };
 
 
@@ -24,7 +25,7 @@ private:
     State state;
 
 public:
-    Client(const std::string&, int);
+    Client(const std::string&, const int&);
 
     // setters
     void setState(State s);

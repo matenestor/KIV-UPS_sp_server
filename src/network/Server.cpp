@@ -208,16 +208,15 @@ void Server::acceptClient() {
     // length of address of incoming connection
     socklen_t peer_addr_len{};
 
-    // accept new connection // TODO setSocketClient()
+    // accept new connection
     client_socket = accept(this->server_socket, (struct sockaddr *) &peer_addr, &peer_addr_len);
 
     if (client_socket > 0) {
         // set new connection to file descriptor
         FD_SET(client_socket, &(this->sockets));
+        this->cli_connected += 1;
         // add new socket number to vector, for update loop
         this->client_sockets.emplace_back(client_socket);
-
-        this->cli_connected += 1;
 
         logger->info("New connection on socket [%d].", client_socket);
     }
@@ -268,17 +267,19 @@ int Server::readClient(const int& socket) {
 int Server::serveClient(const int& client) {
     // according to C standards, it is better to return 0 on success,
     // so this code doesn't give headaches on return values
-    int valid = 1;
+    int valid = 0;
     ClientData data = ClientData();
 
     if (this->hndPacket.isValidFormat(this->buffer) == 0) {
         this->hndPacket.parseMsg(this->buffer, data);
     }
+    else {
+        valid = 1;
+    }
 
     // always should be true, when message is in valid format
     if (!data.empty()) {
-        this->mngClient.process(client, data);
-        valid = 0; // TODO
+        valid = this->mngClient.process(client, data);
     }
 
     return valid;

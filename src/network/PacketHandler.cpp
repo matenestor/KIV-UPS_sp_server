@@ -49,9 +49,7 @@ void PacketHandler::parseMsg(std::string msg, ClientData& data) {
 
     // search every brackets with data in message and emplace it to vector
     while (regex_search(msg, match, Protocol::rgx_data)) {
-        for (const auto & subm: match) {
-            data.emplace_back(match.str().c_str());
-        }
+        data.emplace(match.str());
         msg = match.suffix();
     }
 }

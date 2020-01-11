@@ -2,9 +2,14 @@
 #define PROTOCOL_HPP
 
 #include <regex>
+#include <queue>
 
 
-using ClientData = std::vector<std::string>;
+// same things with different name for better clarity in code
+/** Data received from client. */
+using ClientData = std::queue<std::string>;
+/** Parsed data received from client */
+using Request = std::queue<std::string>;
 
 namespace Protocol {
 
@@ -64,6 +69,10 @@ namespace Protocol {
     static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100})\})+)");
     // server regex -- valid data in curly brackets: <|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100}
     static const std::regex rgx_data(R"(<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100})");
+    // server regex -- valid subdata in data: [^,]+
+    static const std::regex rgx_subdata(R"([^,]+)");
+    // server regex -- valid keys and values in subdata: [^:]+
+    static const std::regex rgx_key_value(R"([^:]+)");
 
     // client regex -- valid format: (?:\{(?:<|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|ch:[\w\s.,!?]{1,100})\})+
     // client regex -- valid data in curly brackets: <|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|ch:[\w\s.,!?]{1,100}

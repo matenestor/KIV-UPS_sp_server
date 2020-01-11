@@ -28,7 +28,18 @@ ClientManager::ClientManager() {
 
 
 
+int ClientManager::processRequest(Request& request) {
+    int processed = 0;
 
+    // loop over every data in queue
+    while (!request.empty()) {
+        // TODO
+        logger->debug("dato [%s] in requst", request.front().c_str());
+        request.pop();
+    }
+
+    return processed;
+}
 
 
 
@@ -39,10 +50,60 @@ ClientManager::ClientManager() {
 
 
 
+
+/******************************************************************************
+ *
+ *
+ *
+ */
+int ClientManager::process(const int& client_num, ClientData& data) {
+    int processed = 0;
+
+    Request queue = Request();
+    std::string subdata{};
+    std::smatch match_sd, match_kv;
+
+    // loop over every data in queue
+    while (!data.empty()) {
+        // parse every subdata from data [^,]+
+        while (regex_search(data.front(), match_sd, Protocol::rgx_subdata)) {
+            subdata = match_sd.str();
+
+            // parse every key-value from subdata [^:]+
+            while (regex_search(subdata, match_kv, Protocol::rgx_key_value)) {
+                // insert it to queue request vector
+                queue.emplace(match_kv.str());
+                subdata = match_kv.suffix();
+            }
+
+            data.front() = match_sd.suffix();
+        }
+
+        data.pop();
+
+        // finally process client's request
+        if (this->processRequest(queue) != 0) {
+            // if request couldn't be processed, stop and set return value to failure
+            // eg. if client sent message in valid format, but it is not valid in terms
+            // of server logic or game logic (sbdy is h4ck1ng w/ t3ln3t..)
+            processed = 1;
+            // clear queue of request data before leaving
+            while (!data.empty()) {
+                data.pop();
+            }
+            break;
+        }
+    }
+
+    return processed;
+}
+
+
 void ClientManager::createClient(const std::string& nick, const int& socket) {
     this->clients.emplace_back(nick, socket);
     logger->info("Created new client [%s] on socket [%d].", nick.c_str(), socket);
 }
+
 
 void ClientManager::removeClient(Client* cli) {
     std::string nick("");
@@ -62,6 +123,7 @@ void ClientManager::removeClient(Client* cli) {
         }
     }
 }
+
 
 Client* ClientManager::findClientBySocket(const int socket) {
     Client* wanted = nullptr;
@@ -91,20 +153,6 @@ Client* ClientManager::findClientByNick(const std::string& nick) {
 }
 
 
-/******************************************************************************
- *
- *
- *
- */
-int ClientManager::process(const int& client_num, ClientData& data) {
-    for (const auto& msg: data) {
-        logger->debug("processing msg [%s] for client [%d]", msg.c_str(), client_num);
-    }
-
-    return 0;
-}
-
-
 // ----- SETTERS
 
 void ClientManager::setClientState(Client* const client, State state) {
@@ -117,7 +165,7 @@ int ClientManager::getClientsCount() const {
     return this->clients.size();
 }
 
-u_int ClientManager::getClientSocket(Client* client) const {
+int ClientManager::getClientSocket(Client* client) const {
     return client->getSocket();
 }
 

@@ -14,8 +14,8 @@
  *
  *
  */
-Client::Client(const std::string& n, const int ns) {
-    this->socket = ns;
+Client::Client(const std::string& n, const int& s) {
+    this->socket = s;
     this->id_room = 0;
     this->nick = n;
     this->state = New;

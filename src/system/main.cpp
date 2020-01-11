@@ -1,10 +1,8 @@
 #include <iostream>
-#include <regex>
 
 #include "Logger.hpp"
 #include "main.hpp"
 #include "signal.hpp"
-#include "../network/protocol.hpp"
 
 
 void signalHandler(int signum) {

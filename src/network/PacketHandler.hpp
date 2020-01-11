@@ -9,7 +9,7 @@ public:
     /** Check if received message is according to protocol. */
     int isValidFormat(const std::string& msg);
     /** Parse message. */
-    void parseMsg(std::string, std::vector<std::string>&);
+    void parseMsg(std::string, ClientData&);
 };
 
 
