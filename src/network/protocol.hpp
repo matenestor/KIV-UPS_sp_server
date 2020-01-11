@@ -60,24 +60,14 @@ namespace Protocol {
     // chat code
     static const std::string OP_CHAT         ("ch"); // chat
 
+    // server regex -- valid format: (?:\{(?:<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100})\})+
+    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100})\})+)");
+    // server regex -- valid data in curly brackets: <|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100}
+    static const std::regex rgx_data(R"(<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100})");
 
-    // client regex: (\{(<|>|rc|rr,il|rr,ig,(ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|ch:\w{1,100})\})+
-
-    // server regex -- valid format: (\{(<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:\w{1,100})\})+
-    static const std::regex validFormat("(\\"+OP_SOH+"("
-                                         +OP_PING+"|"
-                                         +OP_PONG+"|"
-                                         +CC_CONN+OP_SEP+CC_NAME+OP_INI+"\\w{3,20}|"
-                                         +CC_RECN+OP_SEP+CC_NAME+OP_INI+"\\w{3,20}|"
-                                         +CC_MOVE+OP_INI+"\\d{8}|"
-                                         +CC_LEAV+"|"
-                                         +CC_EXIT+"|"
-                                         +OP_CHAT+OP_INI+"\\w{1,100}"
-                                         +")\\"+OP_EOT+")+");
-
-    // server regex -- valid data: \{[\w,:<>]+\}
-    static const std::regex dataFormat("\\"+OP_SOH+"[\\w"+OP_SEP+OP_INI+OP_PING+OP_PONG+"]+\\"+OP_EOT);
-};
+    // client regex -- valid format: (?:\{(?:<|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|ch:[\w\s.,!?]{1,100})\})+
+    // client regex -- valid data in curly brackets: <|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|ch:[\w\s.,!?]{1,100}
+}
 
 
 #endif
