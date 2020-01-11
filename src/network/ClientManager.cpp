@@ -127,6 +127,8 @@ void ClientManager::pingClients() {
     for (auto itr = this->clients.begin(); itr != this->clients.end(); ) {
         sent = send(itr->getSocket(), Protocol::OP_PING.c_str(), 4, 0);
 
+        logger->debug("pinging [%d]", itr->getSocket());
+
         if (sent <= 0) {
             itr = this->closeClient(itr, "client not available");
             continue;

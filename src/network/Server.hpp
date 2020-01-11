@@ -27,7 +27,7 @@ private:
     /** Longest valid message server may accept (chat). */
     constexpr static const int LONGEST_MSG = 106;
     /** Ping messages period in milliseconds. */
-    constexpr static const int PING_PERIOD = 10000;  // TODO timedur
+    constexpr static const int PING_PERIOD = 30000;
 
     /** Handles received messages. */
     PacketHandler hndPacket;

@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "MemberFunctionCanBeStatic"
 // socket()
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -449,7 +447,3 @@ void Server::prStats() {
 int Server::getPort() {
     return this->port;
 }
-
-//fd_set& Server::getSocketsFD() {
-//    return sockets;
-//}
