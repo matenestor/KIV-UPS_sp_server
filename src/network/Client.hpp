@@ -25,9 +25,10 @@ private:
     State state;
 
 public:
-    Client(const std::string&, const int&);
+    Client(const int&);
 
     // setters
+    void setNick(const std::string&);
     void setState(State s);
 
     // getters

@@ -14,10 +14,9 @@
  *
  *
  */
-Client::Client(const std::string& n, const int& s) {
+Client::Client(const int& s) {
     this->socket = s;
     this->id_room = 0;
-    this->nick = n;
     this->state = New;
 }
 
@@ -46,6 +45,10 @@ Client::Client(const std::string& n, const int& s) {
 
 void Client::setState(State s) {
     this->state = s;
+}
+
+void Client::setNick(const std::string& n) {
+    this->nick = n;
 }
 
 // ----- GETTERS

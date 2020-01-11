@@ -8,6 +8,8 @@
 #include "protocol.hpp"
 
 
+using clientsIterator = std::vector<Client>::iterator;
+
 class ClientManager {
 private:
     /** Vector of clients. */
@@ -17,6 +19,11 @@ private:
     Lobby lobby;
     /** GameRoom takes care of playing clients. */
     GameRoom gameRoom;
+
+    // connected, disconnected and reconnected clients
+    int cli_connected;
+    int cli_disconnected;
+    int cli_reconnected;
 
     /** Process parsed client's request. */
     int processRequest(Request&);
@@ -28,9 +35,9 @@ public:
     int process(const int&, ClientData&);
 
     /** Create new client connection. */
-    void createClient(const std::string&, const int&);
-    /** Remove connected player. */
-    void removeClient(Client*);
+    void createClient(const int&);
+    /** Disconnect client with bad socket. */
+    clientsIterator closeClient(clientsIterator& client, const char* reason);
     /** Find connected client in private vector by socket. */
     Client* findClientBySocket(int);
     /** Find connected client in private vector by nick. */
@@ -47,8 +54,14 @@ public:
     const std::string& getClientNick(Client*) const;
     State getClientState(Client*) const;
 
+    std::vector<Client>& getVectorOfClients();
+
+    int& getClientsConnected();
+    int& getClientsDisconnected();
+    int& getClientsReconnected();
+
     // printers
-    void toString() const;
+    void prAllClients() const;
 };
 
 #endif

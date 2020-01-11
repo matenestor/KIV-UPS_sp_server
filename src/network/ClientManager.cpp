@@ -1,7 +1,9 @@
 #include <iostream>
+#include <unistd.h>
 
 #include "../system/Logger.hpp"
 #include "ClientManager.hpp"
+#include "Server.hpp"
 
 
 // ---------- CONSTRUCTORS & DESTRUCTORS
@@ -17,6 +19,9 @@
  */
 ClientManager::ClientManager() {
     this->clients = std::vector<Client>();
+    this->cli_connected = 0;
+    this->cli_disconnected = 0;
+    this->cli_reconnected = 0;
 }
 
 
@@ -99,29 +104,20 @@ int ClientManager::process(const int& client_num, ClientData& data) {
 }
 
 
-void ClientManager::createClient(const std::string& nick, const int& socket) {
-    this->clients.emplace_back(nick, socket);
-    logger->info("Created new client [%s] on socket [%d].", nick.c_str(), socket);
+void ClientManager::createClient(const int& socket) {
+    this->clients.emplace_back(socket);
+    logger->info("Created new client on socket [%d].", socket);
 }
 
 
-void ClientManager::removeClient(Client* cli) {
-    std::string nick("");
-    int socket = -1;
+clientsIterator ClientManager::closeClient(clientsIterator& client, const char* reason) {
+    close(client->getSocket());
+//    FD_CLR(client->getSocket(), &(Server::getSocketsFD()));
+    this->cli_disconnected += 1;
 
-    for (auto itr = this->clients.begin(); itr != this->clients.end(); ++itr) {
-        if ((*itr).getSocket() == cli->getSocket()) {
-            // save client's data in this scope for logger
-            nick = (*itr).getNick();
-            socket = (*itr).getSocket();
+    logger->info("Client on socket [%d] closed [%s], [%s]", client->getSocket(), reason, std::strerror(errno));
 
-            // remove client
-            clients.erase(itr);
-
-            logger->info("Removed client [%s] on socket [%d].", nick.c_str(), socket);
-            break;
-        }
-    }
+    return this->clients.erase(client);
 }
 
 
@@ -152,7 +148,6 @@ Client* ClientManager::findClientByNick(const std::string& nick) {
     return wanted;
 }
 
-
 // ----- SETTERS
 
 void ClientManager::setClientState(Client* const client, State state) {
@@ -181,9 +176,25 @@ State ClientManager::getClientState(Client* client) const {
     return client->getState();
 }
 
+std::vector<Client>& ClientManager::getVectorOfClients() {
+    return this->clients;
+}
+
+int& ClientManager::getClientsConnected() {
+    return this->cli_connected;
+}
+
+int& ClientManager::getClientsDisconnected() {
+    return this->cli_disconnected;
+}
+
+int& ClientManager::getClientsReconnected() {
+    return this->cli_reconnected;
+}
+
 // ----- PRINTERS
 
-void ClientManager::toString() const {
+void ClientManager::prAllClients() const {
     logger->debug("Printing all clients.");
 
     for (const auto& client : clients) {

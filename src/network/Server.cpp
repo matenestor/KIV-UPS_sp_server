@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "MemberFunctionCanBeStatic"
 // socket()
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -29,16 +31,12 @@
  */
 Server::Server(const int p) {
     // basic initialization
-    this->port = p;
-    this->server_socket = 0;
-    this->server_address = {0};
     this->sockets = {0};
-    this->client_sockets = std::vector<int>();
+    this->server_address = {0};
+    this->server_socket = 0;
+    this->port = p;
     this->bytes_recv = 0;
     this->bytes_send = 0;
-    this->cli_connected = 0;
-    this->cli_disconnected = 0;
-    this->cli_reconnected = 0;
 
     this->clearBuffer(this->buffer);
 
@@ -141,6 +139,7 @@ void Server::shutdown() {
  */
 void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
     int received = 0;
+    int client_socket = 0;
 
     // server socket -- request for new connection
     if (FD_ISSET(this->server_socket, &fds_read)) {
@@ -148,27 +147,30 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
     }
 
     // loop over all connected clients
-    for (auto itr = client_sockets.begin(); itr != client_sockets.end(); ) {
+    for (auto itr = this->mngClient.getVectorOfClients().begin(); itr != this->mngClient.getVectorOfClients().end(); ) {
+        client_socket = itr->getSocket();
 
         // except file descriptor change
-        if (FD_ISSET(*itr, &fds_except)) {
-            itr = this->disconnectClient(itr, "except file descriptor error");
+        if (FD_ISSET(client_socket, &fds_except)) {
+            FD_CLR(itr->getSocket(), &(this->sockets));
+            itr = this->mngClient.closeClient(itr, "except file descriptor error");
             continue;
         }
 
         // read file descriptor change
-        if (FD_ISSET(*itr, &fds_read)) {
-            ioctl(*itr, FIONREAD, &received);
+        if (FD_ISSET(client_socket, &fds_read)) {
+            ioctl(client_socket, FIONREAD, &received);
 
             // if there is something in receive buffer, read
             if (received > 0) {
                 // this variable may change to non-zero value according to what is client sending
-                received = this->readClient(*itr);
+                received = this->readClient(client_socket);
 
                 // successful message receive
                 if (received > 0) {
                     if (this->serveClient(*itr) != 0) {
-                        itr = this->disconnectClient(itr, "violation of protocol");
+                        FD_CLR(itr->getSocket(), &(this->sockets));
+                        itr = this->mngClient.closeClient(itr, "violation of protocol");
                         continue;
                     }
                 }
@@ -176,12 +178,14 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
 
             // client logout
             if (received == 0) {
-                itr = this->disconnectClient(itr, "logout");
+                FD_CLR(itr->getSocket(), &(this->sockets));
+                itr = this->mngClient.closeClient(itr, "logout");
                 continue;
             }
             // bad socket
             else if (received < 0) {
-                itr = this->disconnectClient(itr, "no message received");
+                FD_CLR(itr->getSocket(), &(this->sockets));
+                itr = this->mngClient.closeClient(itr, "no message received");
                 continue;
             }
         }
@@ -214,9 +218,9 @@ void Server::acceptClient() {
     if (client_socket > 0) {
         // set new connection to file descriptor
         FD_SET(client_socket, &(this->sockets));
-        this->cli_connected += 1;
+        this->mngClient.getClientsConnected() += 1;
         // add new socket number to vector, for update loop
-        this->client_sockets.emplace_back(client_socket);
+        this->mngClient.createClient(client_socket);
 
         logger->info("New connection on socket [%d].", client_socket);
     }
@@ -285,7 +289,7 @@ int Server::readClient(const int& socket) {
  * 	@return If client was successfully served, returns 0 else return 1.
  *
  */
-int Server::serveClient(const int& client) {
+int Server::serveClient(Client& client) {
     // according to C standards, it is better to return 0 on success,
     // so this code doesn't give headaches on return values
     int valid = 0;
@@ -295,13 +299,13 @@ int Server::serveClient(const int& client) {
         this->hndPacket.parseMsg(this->buffer, data);
     }
     else {
-        logger->warning("Server received invalid data. Going to disconnect client [%d].", client);
+        logger->warning("Server received invalid data. Going to disconnect client [%d].", client.getSocket());
         valid = 1;
     }
 
     // always should be true, when message is in valid format
     if (!data.empty()) {
-        valid = this->mngClient.process(client, data);
+        valid = this->mngClient.process(client.getSocket(), data);
     }
 
     return valid;
@@ -311,17 +315,6 @@ int Server::serveClient(const int& client) {
 // TODO
 void Server::pingClients() {
     logger->info("pinging");
-}
-
-
-vecIterator::iterator Server::disconnectClient(vecIterator::iterator& socket, const char* reason) {
-    close(*socket);
-    FD_CLR(*socket, &(this->sockets));
-    this->cli_disconnected += 1;
-
-    logger->info("Client on socket [%d] closed [%s], [%s]", *socket, reason, std::strerror(errno));
-
-    return this->client_sockets.erase(socket);
 }
 
 
@@ -335,8 +328,9 @@ void Server::closeSockets() {
 
 
 void Server::closeClientSockets() {
-    for (auto itr = client_sockets.begin(); itr != client_sockets.end(); ) {
-        itr = disconnectClient(itr, "server shutdown");
+    for (auto itr = this->mngClient.getVectorOfClients().begin(); itr != this->mngClient.getVectorOfClients().end(); ) {
+        FD_CLR(itr->getSocket(), &(this->sockets));
+        itr = this->mngClient.closeClient(itr, "server shutdown");
     }
 }
 
@@ -439,9 +433,9 @@ void Server::run() {
 
 
 void Server::prStats() {
-    logger->info("Clients connected: %d",    this->cli_connected);
-    logger->info("Clients disconnected: %d", this->cli_disconnected);
-    logger->info("Clients reconnected: %d",  this->cli_reconnected);
+    logger->info("Clients connected: %d",    this->mngClient.getClientsConnected());
+    logger->info("Clients disconnected: %d", this->mngClient.getClientsDisconnected());
+    logger->info("Clients reconnected: %d",  this->mngClient.getClientsReconnected());
     logger->info("Bytes received: %d",       this->bytes_recv);
     logger->info("Bytes sent: %d",           this->bytes_send);
 }
@@ -453,3 +447,7 @@ void Server::prStats() {
 int Server::getPort() {
     return this->port;
 }
+
+//fd_set& Server::getSocketsFD() {
+//    return sockets;
+//}

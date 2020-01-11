@@ -10,8 +10,6 @@
 #include "PacketHandler.hpp"
 
 
-using vecIterator = std::vector<int, std::allocator<int>>;
-
 class Server {
 private:
     // --- ATTRIBUTES ---
@@ -35,17 +33,15 @@ private:
     /** Manages connected clients. */
     ClientManager mngClient;
 
-    /** Port number to be connected to. */
-    int port;
-
+    /** Sockets for select. */
+    fd_set sockets{};
+    /** Server address. */
+    struct sockaddr_in server_address{};
     /** Server socket index for file descriptor. */
     int server_socket;
-	/** Server address. */
-    struct sockaddr_in server_address{};
-	/** Sockets for select. */
-    fd_set sockets{};
-    /** Socket numbers. */
-    std::vector<int> client_sockets;
+
+    /** Port number to be connected to. */
+    int port;
 
     /** Buffer for receiving messages. */
     char buffer[SIZE_BUFF]{};
@@ -53,11 +49,6 @@ private:
     // received and sent bytes count
     int bytes_recv;
     int bytes_send;
-
-    // connected, disconnected and reconnected clients
-    int cli_connected;
-    int cli_disconnected;
-    int cli_reconnected;
 
     // --- METHODS ---
 
@@ -74,11 +65,9 @@ private:
 	/** Receive message from client. */
 	int readClient(const int&);
     /** Serve client according to received message. */
-    int serveClient(const int&);
+    int serveClient(Client&);
     /** Pinging clients, in order to prevent unnecessary waiting for them. */
     void pingClients();
-    /** Disconnect client with bad socket. */
-    vecIterator::iterator disconnectClient(vecIterator::iterator& socket, const char* reason);
 
     /** Calls methods to close both server and client sockets. */
     void closeSockets();
@@ -105,6 +94,8 @@ public:
 
     /** Get server's port. */
     int getPort();
+//    /** Get this sockets file descriptor (needed by ClientManager). */
+//    static fd_set& getSocketsFD();
 };
 
 #endif
