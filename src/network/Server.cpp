@@ -40,7 +40,7 @@ Server::Server(const int p) {
     this->cli_disconnected = 0;
     this->cli_reconnected = 0;
 
-    this->clearBuffer();
+    this->clearBuffer(this->buffer);
 
     // initialize server
     try {
@@ -234,25 +234,46 @@ void Server::acceptClient() {
 int Server::readClient(const int& socket) {
     int received = 0;
     int received_total = 0;
-    this->clearBuffer();
 
-    do {
-        received = recv(socket, this->buffer, SIZE_RECV, 0);
+    // local step buffer receiving possible not whole data
+    char step_buffer[SIZE_BUFF]{'\0'};
+    // clear server's buffer
+    this->clearBuffer(this->buffer);
 
-        // read from client, until buffer is full (27 == longest valid message server may accept)
-        if (received_total < SIZE_RECV - 27 && received >= 0) {
-            // increment total received bytes in this reading from socket
-            received_total += received;
-            // increment total received bytes in server lifetime (even during flooding)
-            this->bytes_recv += received_total;
+    while(1) {
+        ioctl(socket, FIONREAD, &received);
+
+        // something is still there to read
+        if (received > 0) {
+            received = recv(socket, step_buffer, SIZE_RECV, 0);
+
+            // read from client, until buffer is full
+            if (received_total < SIZE_RECV - LONGEST_MSG && received >= 0) {
+                // increment total received bytes in this reading from socket
+                received_total += received;
+                // increment total received bytes in server lifetime (even during flooding)
+                this->bytes_recv += received_total;
+
+                // copy step buffer to class buffer
+                this->insertToBuffer(this->buffer, step_buffer);
+                this->clearBuffer(step_buffer);
+            }
         }
+        // end of receiving
+        else if (received == 0) {
+            logger->debug("End of receiving. Received: [%s]", this->buffer);
+            break;
+        }
+
         // client is flooding the server (not possible to fill 1KB buffer
         // during turn-based game, with used protocol, like this one)
-        else {
+        if (received_total > SIZE_RECV - LONGEST_MSG || received < 0) {
+            logger->warning("Server is being flooded. Going to disconnect client [%d].", socket);
             received = -1;
             received_total = -1;
+            break;
         }
-    } while (received > 0);
+    }
 
     return received_total;
 }
@@ -274,6 +295,7 @@ int Server::serveClient(const int& client) {
         this->hndPacket.parseMsg(this->buffer, data);
     }
     else {
+        logger->warning("Server received invalid data. Going to disconnect client [%d].", client);
         valid = 1;
     }
 
@@ -330,10 +352,21 @@ void Server::closeServerSocket() {
 // ----- OTHERS
 
 
-void Server::clearBuffer() {
-    std::memset(this->buffer, 0, SIZE_BUFF);
+void Server::clearBuffer(char* p_buff) {
+    std::memset(p_buff, 0, SIZE_BUFF);
 }
 
+
+void Server::insertToBuffer(char* p_dst, char* p_src) {
+    // copy everything, except newline characters, from sourse to destination
+    while (*p_src) {
+        if (!(*p_src == '\n' || *p_src == '\r')) {
+            *p_dst = *p_src;
+            ++p_dst;
+        }
+        ++p_src;
+    }
+}
 
 
 
@@ -380,8 +413,9 @@ void Server::run() {
         // it is caught by signalHandler() in main.cpp, which sets the isRunning variable to 0.
         // Then select() is released, so this condition breaks the loop, in order to
         // the server may shutdown properly
-        if (isRunning == 0)
+        if (isRunning == 0) {
             break;
+        }
 
         // ping after timeout TODO
         if (activity == 0) {
@@ -419,46 +453,3 @@ void Server::prStats() {
 int Server::getPort() {
     return this->port;
 }
-
-
-
-
-
-
-
-
-
-/* WASTELAND
-
-
-// --- TODO tmp functions for testing the chat communication way ---
-
-using MsgList = std::vector<std::string>;
-using QueueTable = std::map<int, MsgList>;
-QueueTable queue = QueueTable();
-
-void enqueue(const int& sock, const std::string& msg) {
-    if (queue.find(sock) == queue.end()) {
-        queue.insert(std::pair<int, MsgList>(sock, MsgList()));
-    }
-    queue.at(sock).emplace_back(msg);
-}
-
-std::string dequeue(const int& sock) {
-    std::string first;
-    if (queue.find(sock) == queue.end()) {
-        first = "<corrupted-sock>\n";
-    }
-    else {
-        if (queue.at(sock).begin() == queue.at(sock).end()) {
-            first = "<empty>\n";
-        }
-        else {
-            first = *queue.at(sock).begin();
-            queue.at(sock).pop_back();
-        }
-    }
-    return first;
-}
-
- */

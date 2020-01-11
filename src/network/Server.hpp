@@ -27,6 +27,8 @@ private:
     constexpr static const int SIZE_BUFF = 1024;
     /** Default length of messages for receiving. */
     constexpr static const int SIZE_RECV = SIZE_BUFF - 1;
+    /** Longest valid message server may accept (chat). */
+    constexpr static const int LONGEST_MSG = 106;
 
     /** Handles received messages. */
     PacketHandler hndPacket;
@@ -86,7 +88,9 @@ private:
     void closeServerSocket();
 
     /** Clear buffer for message receiving. */
-    void clearBuffer();
+    void clearBuffer(char*);
+    /** Inserts part of received message from buffer in readClient() to class buffer. */
+    void insertToBuffer(char*, char*);
 
 public:
 	/** Constructor, which does everything. */
