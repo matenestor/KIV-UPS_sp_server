@@ -38,6 +38,8 @@ public:
     void createClient(const int&);
     /** Disconnect client with bad socket. */
     clientsIterator closeClient(clientsIterator& client, const char* reason);
+    /** Asynchronous pinging clients. */
+    void pingClients();
     /** Find connected client in private vector by socket. */
     Client* findClientBySocket(int);
     /** Find connected client in private vector by nick. */

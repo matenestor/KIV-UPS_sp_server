@@ -4,6 +4,8 @@
 // sockaddr_in, arpa/inet.h -> htons()
 #include <netinet/in.h>
 
+#include <condition_variable>
+#include <mutex>
 #include <vector>
 
 #include "ClientManager.hpp"
@@ -18,27 +20,31 @@ private:
     constexpr static const int BACK_LOG = 5;
     /** Default port number. */
     constexpr static const int DEFAULT_PORT = 10000;
-    /** Seconds before timeout. */
-    constexpr static const int TIMEOUT_SEC = 30;
-    constexpr static const int TIMEOUT_USEC = 1;
     /** Default size of buffer. */
     constexpr static const int SIZE_BUFF = 1024;
     /** Default length of messages for receiving. */
     constexpr static const int SIZE_RECV = SIZE_BUFF - 1;
     /** Longest valid message server may accept (chat). */
     constexpr static const int LONGEST_MSG = 106;
+    /** Ping messages period in milliseconds. */
+    constexpr static const int PING_PERIOD = 10000;  // TODO timedur
 
     /** Handles received messages. */
     PacketHandler hndPacket;
     /** Manages connected clients. */
     ClientManager mngClient;
 
+    /** Mutex for pinging thread -- vector of clients is critical section. */
+    std::mutex mtx;
+    /** Condition variable for pinging thread -- release after 30 seconds. */
+    std::condition_variable cv;
+
     /** Sockets for select. */
     fd_set sockets{};
     /** Server address. */
-    struct sockaddr_in server_address{};
+    struct sockaddr_in serverAddress{};
     /** Server socket index for file descriptor. */
-    int server_socket;
+    int serverSocket;
 
     /** Port number to be connected to. */
     int port;
@@ -47,8 +53,8 @@ private:
     char buffer[SIZE_BUFF]{};
 
     // received and sent bytes count
-    int bytes_recv;
-    int bytes_send;
+    int bytesRecv;
+    int bytesSend;
 
     // --- METHODS ---
 

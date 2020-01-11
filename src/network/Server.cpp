@@ -9,6 +9,7 @@
 #include <cerrno>
 #include <cstring>
 #include <sys/ioctl.h>
+#include <thread>
 
 #include "../system/Logger.hpp"
 #include "../system/signal.hpp"
@@ -32,11 +33,11 @@
 Server::Server(const int p) {
     // basic initialization
     this->sockets = {0};
-    this->server_address = {0};
-    this->server_socket = 0;
+    this->serverAddress = {0};
+    this->serverSocket = 0;
     this->port = p;
-    this->bytes_recv = 0;
-    this->bytes_send = 0;
+    this->bytesRecv = 0;
+    this->bytesSend = 0;
 
     this->clearBuffer(this->buffer);
 
@@ -86,32 +87,32 @@ void Server::init() {
     // --- INIT SOCKET ---
 
     // create server socket
-    this->server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    this->serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
     // check socket creation
-    if (this->server_socket < 0) {
+    if (this->serverSocket < 0) {
         throw std::runtime_error(std::string("Unable to create server socket. "));
     }
 
     // --- INIT ADDRESS ---
 
     // fill server socket
-    this->server_address.sin_family = AF_INET;
-    this->server_address.sin_port = htons(this->port);
+    this->serverAddress.sin_family = AF_INET;
+    this->serverAddress.sin_port = htons(this->port);
     // TODO implement assignable own IP address
-    this->server_address.sin_addr.s_addr = INADDR_ANY;
+    this->serverAddress.sin_addr.s_addr = INADDR_ANY;
 
     // --- INIT BIND ---
 
     // bind server socket with address
-    if (bind(this->server_socket, (struct sockaddr *) &(this->server_address), sizeof(struct sockaddr_in)) != 0) {
+    if (bind(this->serverSocket, (struct sockaddr *) &(this->serverAddress), sizeof(struct sockaddr_in)) != 0) {
         throw std::runtime_error(std::string("Unable to bind server socket with server address. "));
     }
 
     // --- INIT LISTEN ---
 
     // start listening on server socket
-    if (listen(this->server_socket, BACK_LOG) != 0) {
+    if (listen(this->serverSocket, BACK_LOG) != 0) {
         throw std::runtime_error(std::string("Unable to listen on server socket. "));
     }
 
@@ -120,7 +121,7 @@ void Server::init() {
     // clear client sockets
     FD_ZERO(&(this->sockets));
     // set server socket
-    FD_SET(this->server_socket, &(this->sockets));
+    FD_SET(this->serverSocket, &(this->sockets));
 }
 
 
@@ -142,7 +143,7 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
     int client_socket = 0;
 
     // server socket -- request for new connection
-    if (FD_ISSET(this->server_socket, &fds_read)) {
+    if (FD_ISSET(this->serverSocket, &fds_read)) {
         this->acceptClient();
     }
 
@@ -213,7 +214,7 @@ void Server::acceptClient() {
     socklen_t peer_addr_len{};
 
     // accept new connection
-    client_socket = accept(this->server_socket, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    client_socket = accept(this->serverSocket, (struct sockaddr *) &peer_addr, &peer_addr_len);
 
     if (client_socket > 0) {
         // set new connection to file descriptor
@@ -221,6 +222,8 @@ void Server::acceptClient() {
         this->mngClient.getClientsConnected() += 1;
         // add new socket number to vector, for update loop
         this->mngClient.createClient(client_socket);
+
+        // TODO check if capacity for connected clients is not full
 
         logger->info("New connection on socket [%d].", client_socket);
     }
@@ -256,7 +259,7 @@ int Server::readClient(const int& socket) {
                 // increment total received bytes in this reading from socket
                 received_total += received;
                 // increment total received bytes in server lifetime (even during flooding)
-                this->bytes_recv += received_total;
+                this->bytesRecv += received_total;
 
                 // copy step buffer to class buffer
                 this->insertToBuffer(this->buffer, step_buffer);
@@ -312,9 +315,12 @@ int Server::serveClient(Client& client) {
 }
 
 
-// TODO
 void Server::pingClients() {
-    logger->info("pinging");
+    while (isRunning) {
+        std::unique_lock<std::mutex> lock(mtx);
+        this->mngClient.pingClients();
+        cv.wait_for(lock, std::chrono::milliseconds(PING_PERIOD));
+    }
 }
 
 
@@ -336,8 +342,8 @@ void Server::closeClientSockets() {
 
 
 void Server::closeServerSocket() {
-    close(this->server_socket);
-    FD_CLR(this->server_socket, &(this->sockets));
+    close(this->serverSocket);
+    FD_CLR(this->serverSocket, &(this->sockets));
 
     logger->info("Server socket closed.");
 }
@@ -352,7 +358,7 @@ void Server::clearBuffer(char* p_buff) {
 
 
 void Server::insertToBuffer(char* p_dst, char* p_src) {
-    // copy everything, except newline characters, from sourse to destination
+    // copy everything, except newline characters, from source to destination
     while (*p_src) {
         if (!(*p_src == '\n' || *p_src == '\r')) {
             *p_dst = *p_src;
@@ -379,28 +385,22 @@ void Server::run() {
     int activity = 0;
 
     // sockets for comparing changes on sockets
-    fd_set fds_read{}, fds_except{};
-
-    // tv_sec seconds before timeout
-    struct timeval tv{0};
-    tv.tv_sec = TIMEOUT_SEC;
-    tv.tv_usec = TIMEOUT_USEC;
+    fd_set fdsRead{}, fdsExcept{};
 
     // set server as running (this is inline volatile std::sig_atomic_t variable in signal.hpp)
     isRunning = 1;
 
-    while (1) {
-        // create copy of client sockets, in order to compare it after select
-        fds_read   = sockets;
-        fds_except = sockets;
+    // create pinging thread
+    std::thread pingThread(&Server::pingClients, this);
 
-        // reset timeout timer
-        tv.tv_sec = TIMEOUT_SEC;
-        tv.tv_usec = TIMEOUT_USEC;
+    while (isRunning) {
+        // create copy of client sockets, in order to compare it after select
+        fdsRead   = sockets;
+        fdsExcept = sockets;
 
         // if still running, call 'select' which finds out, if there were some changes on file descriptors
         if (isRunning) {
-            activity = select(FD_SETSIZE, &fds_read, nullptr, &fds_except, &tv);
+            activity = select(FD_SETSIZE, &fdsRead, nullptr, &fdsExcept, nullptr);
         }
 
         // Server most of the time waits on select() above and when SIGINT signal comes,
@@ -411,12 +411,6 @@ void Server::run() {
             break;
         }
 
-        // ping after timeout TODO
-        if (activity == 0) {
-            this->pingClients();
-            continue;
-        }
-
         // crash server after error on select
         if (activity < 0) {
             this->shutdown();
@@ -424,11 +418,19 @@ void Server::run() {
         }
 
         // update clients -- accept, recv
-        this->updateClients(fds_read, fds_except);
+        {
+            const std::lock_guard<std::mutex> lock(this->mtx);
+            this->updateClients(fdsRead, fdsExcept);
+        }
     }
 
     // safely shutdown server after SIGINT
-    this->shutdown();
+    {
+        const std::lock_guard<std::mutex> lock(this->mtx);
+        this->shutdown();
+    }
+
+    pingThread.join();
 }
 
 
@@ -436,8 +438,8 @@ void Server::prStats() {
     logger->info("Clients connected: %d",    this->mngClient.getClientsConnected());
     logger->info("Clients disconnected: %d", this->mngClient.getClientsDisconnected());
     logger->info("Clients reconnected: %d",  this->mngClient.getClientsReconnected());
-    logger->info("Bytes received: %d",       this->bytes_recv);
-    logger->info("Bytes sent: %d",           this->bytes_send);
+    logger->info("Bytes received: %d",       this->bytesRecv);
+    logger->info("Bytes sent: %d",           this->bytesSend);
 }
 
 

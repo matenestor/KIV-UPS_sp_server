@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(KIV_UPS_sp_server)
 
 set(CMAKE_CXX_STANDARD 17)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 # main
 add_executable(KIV_UPS_sp_server
@@ -25,5 +26,5 @@ add_executable(KIV_UPS_sp_server
         src/game/RoomHnefatafl.cpp src/game/RoomHnefatafl.hpp
         )
 
-# tmp
-#add_executable(KIV_UPS_sp_server tmp/tmp.cpp tmp/tmp.hpp tmp/tmp1.cpp tmp/tmp2.cpp)
+find_package(Threads REQUIRED)
+target_link_libraries(KIV_UPS_sp_server Threads::Threads)

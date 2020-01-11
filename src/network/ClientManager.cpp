@@ -112,12 +112,28 @@ void ClientManager::createClient(const int& socket) {
 
 clientsIterator ClientManager::closeClient(clientsIterator& client, const char* reason) {
     close(client->getSocket());
-//    FD_CLR(client->getSocket(), &(Server::getSocketsFD()));
     this->cli_disconnected += 1;
 
     logger->info("Client on socket [%d] closed [%s], [%s]", client->getSocket(), reason, std::strerror(errno));
 
     return this->clients.erase(client);
+}
+
+
+void ClientManager::pingClients() {
+    int sent = 0;
+
+    // ping all clients and disconnect those, who can't answer immediately
+    for (auto itr = this->clients.begin(); itr != this->clients.end(); ) {
+        sent = send(itr->getSocket(), Protocol::OP_PING.c_str(), 4, 0);
+
+        if (sent <= 0) {
+            itr = this->closeClient(itr, "client not available");
+            continue;
+        }
+
+        ++itr;
+    }
 }
 
 
