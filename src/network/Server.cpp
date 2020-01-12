@@ -1,3 +1,7 @@
+// inet_addr()
+#include <arpa/inet.h>
+// ioctl()
+#include <sys/ioctl.h>
 // socket()
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -6,7 +10,6 @@
 
 #include <cerrno>
 #include <cstring>
-#include <sys/ioctl.h>
 #include <thread>
 
 #include "../system/Logger.hpp"
@@ -25,39 +28,33 @@
  * Constructor initializes variables to default values and then initializes
  * itself. If something could not be initialized, throws an exception.
  *
- * @param p
- *
  */
-Server::Server(const int p) {
+
+Server::Server(const char* addr, const int& port, const int& clients, const int& rooms) {
     // basic initialization
-    this->sockets = {0};
+    strcpy(this->ipAddress, addr);
+    this->port       = port;
+    this->maxClients = clients + 1; // +1 for client, who is told, that server is full
+    this->maxRooms   = rooms;
+
+    this->sockets       = {0};
     this->serverAddress = {0};
-    this->serverSocket = 0;
-    this->port = p;
+    this->serverSocket  = 0;
+
+    this->clearBuffer(this->buffer);
+
     this->bytesRecv = 0;
     this->bytesSend = 0;
 
-    this->clearBuffer(this->buffer);
 
     // initialize server
     try {
         this->init();
     }
     catch (const std::exception& ex) {
-        logger->error("%s [%s]. [port: %d]", ex.what(), std::strerror(errno), p);
+        logger->error("%s [%s]. IP address [%s] port: [%d] ", ex.what(), std::strerror(errno), addr, port);
         throw std::runtime_error("Unable to create a Server instance.");
     }
-}
-
-
-/******************************************************************************
- *
- * Empty constructor without parameters. Inherits from constructor,
- * where is everything implemented and passes there DEFAULT_PORT value.
- *
- */
-Server::Server() : Server(DEFAULT_PORT) {
-    // empty
 }
 
 
@@ -89,7 +86,7 @@ void Server::init() {
 
     // check socket creation
     if (this->serverSocket < 0) {
-        throw std::runtime_error(std::string("Unable to create server socket. "));
+        throw std::runtime_error(std::string("Unable to create server socket."));
     }
 
     // --- INIT ADDRESS ---
@@ -97,21 +94,23 @@ void Server::init() {
     // fill server socket
     this->serverAddress.sin_family = AF_INET;
     this->serverAddress.sin_port = htons(this->port);
-    // TODO implement assignable own IP address
-    this->serverAddress.sin_addr.s_addr = INADDR_ANY;
+
+    if (inet_pton(AF_INET, this->ipAddress, &this->serverAddress.sin_addr.s_addr) != 1) {
+        throw std::runtime_error(std::string("Unable to assign IP address to server."));
+    }
 
     // --- INIT BIND ---
 
     // bind server socket with address
     if (bind(this->serverSocket, (struct sockaddr *) &(this->serverAddress), sizeof(struct sockaddr_in)) != 0) {
-        throw std::runtime_error(std::string("Unable to bind server socket with server address. "));
+        throw std::runtime_error(std::string("Unable to bind server socket with server address."));
     }
 
     // --- INIT LISTEN ---
 
     // start listening on server socket
     if (listen(this->serverSocket, BACK_LOG) != 0) {
-        throw std::runtime_error(std::string("Unable to listen on server socket. "));
+        throw std::runtime_error(std::string("Unable to listen on server socket."));
     }
 
     // --- INIT FD ---
@@ -444,6 +443,18 @@ void Server::prStats() {
 // ----- GETTERS
 
 
+char* Server::getIPaddress() {
+    return this->ipAddress;
+}
+
 int Server::getPort() {
     return this->port;
+}
+
+int Server::getMaxClients() {
+    return this->maxClients - 1;
+}
+
+int Server::getMaxRooms() {
+    return this->maxRooms;
 }

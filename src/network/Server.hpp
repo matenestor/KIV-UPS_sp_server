@@ -1,7 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-// sockaddr_in, arpa/inet.h -> htons()
+// sockaddr_in
 #include <netinet/in.h>
 
 #include <condition_variable>
@@ -18,8 +18,6 @@ private:
 
     /** Default size of queue for new connections. */
     constexpr static const int BACK_LOG = 5;
-    /** Default port number. */
-    constexpr static const int DEFAULT_PORT = 10000;
     /** Default size of buffer. */
     constexpr static const int SIZE_BUFF = 1024;
     /** Default length of messages for receiving. */
@@ -36,8 +34,16 @@ private:
 
     /** Mutex for pinging thread -- vector of clients is critical section. */
     std::mutex mtx;
-    /** Condition variable for pinging thread -- release after 30 seconds. */
-    std::condition_variable cv;
+
+    /** IPv4 address to run on. */
+    char ipAddress[16]{};
+    /** Port number to be connected to. */
+    int port;
+    /** Maximum count of connected clients. One extra for the one client,
+     * who reaches maximum capacity and is disconnected after "max capacity" message. */
+    int maxClients;
+    /** Maximum count of game rooms. */
+    int maxRooms;
 
     /** Sockets for select. */
     fd_set sockets{};
@@ -45,9 +51,6 @@ private:
     struct sockaddr_in serverAddress{};
     /** Server socket index for file descriptor. */
     int serverSocket;
-
-    /** Port number to be connected to. */
-    int port;
 
     /** Buffer for receiving messages. */
     char buffer[SIZE_BUFF]{};
@@ -88,20 +91,22 @@ private:
     void insertToBuffer(char*, char*);
 
 public:
-	/** Constructor, which does everything. */
-    explicit Server(int);
-	/** Empty constructor, inherits from constructor with port parameter. */
-    Server();
+	/** Constructor. */
+    Server(const char*, const int&, const int&, const int&);
 
     /** Runs server. */
     void run();
     /** Print server statistics. */
     void prStats();
 
+    /** Get server's IP addres. */
+    char* getIPaddress();
     /** Get server's port. */
     int getPort();
-//    /** Get this sockets file descriptor (needed by ClientManager). */
-//    static fd_set& getSocketsFD();
+    /** Get maximum count of clients on server. */
+    int getMaxClients();
+    /** Get maximum count of game rooms on server. */
+    int getMaxRooms();
 };
 
 #endif
