@@ -14,10 +14,10 @@ add_executable(KIV_UPS_sp_server
         src/system/main.cpp
         src/system/argument_parser.cpp
 
-        src/network/server_handler.cpp
-        src/network/Server.cpp src/network/Server.hpp
-        src/network/PacketHandler.cpp src/network/PacketHandler.hpp
         src/network/protocol.hpp
+        src/network/server_handler.cpp
+        src/network/packet_handler.hpp
+        src/network/Server.cpp src/network/Server.hpp
 
         src/network/ClientManager.cpp src/network/ClientManager.hpp
         src/network/Client.cpp src/network/Client.hpp

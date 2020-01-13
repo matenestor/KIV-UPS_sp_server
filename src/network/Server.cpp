@@ -14,6 +14,7 @@
 
 #include "../system/Logger.hpp"
 #include "../system/signal.hpp"
+#include "packet_handler.hpp"
 #include "Server.hpp"
 
 
@@ -137,7 +138,13 @@ void Server::shutdown() {
 
 /******************************************************************************
  *
- *
+ *  Accept new client connection, if max capacity is reached, refuse last connected client.
+ *  Loop over all connected clients. Check for changes on except file descriptor
+ *  and read file descriptor.
+ *  If there is change on read file descriptor, try to read message of client and serve,
+ *  if there is something in buffer, or if there is nothing in buffer,
+ *  it means, that client logged out.
+ *  During errors, disconnect client.
  *
  */
 void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
@@ -200,7 +207,7 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
         ++cli;
     }
 
-    this->mngClient.prAllClients();
+//    this->mngClient.prAllClients();
 }
 
 
@@ -236,7 +243,7 @@ void Server::acceptClient() {
 
 void Server::refuseClient() {
     // new connected client
-    clientsIterator newClient = this->mngClient.getVectorOfClients().end() - 1;
+    auto newClient = this->mngClient.getVectorOfClients().end() - 1;
 
     // message about too many connections
     this->mngClient.sendToClient(newClient, Protocol::SC_MANY_CLNT);
@@ -266,7 +273,8 @@ clientsIterator Server::closeClient(clientsIterator& client, const char* reason)
 
 /******************************************************************************
  *
- *
+ *  Read while there is something in buffer to read or while class buffer is not full.
+ *  If class buffer is full, disconnect client, becauase client is flooding the server.
  *
  */
 int Server::readClient(const int& socket) {
@@ -320,7 +328,7 @@ int Server::readClient(const int& socket) {
 /******************************************************************************
  *
  *
- * 	@return If client was successfully served, returns 0 else return 1.
+ * 	@return If client was successfully served, returns 0, else return 1.
  *
  */
 int Server::serveClient(Client& client) {
@@ -329,8 +337,8 @@ int Server::serveClient(Client& client) {
     int valid = 0;
     clientData data = clientData();
 
-    if (this->hndPacket.isValidFormat(this->buffer) == 0) {
-        this->hndPacket.parseMsg(this->buffer, data);
+    if (isValidFormat(this->buffer) == 0) {
+        parseMsg(this->buffer, data);
     }
     else {
         logger->warning("Server received invalid data. Going to disconnect client [%d].", client.getSocket());
@@ -348,7 +356,7 @@ int Server::serveClient(Client& client) {
 
 /******************************************************************************
  *
- * 	Called by pinging threat to ping clients.
+ * 	Called by pinging thread to ping clients.
  *
  */
 void Server::pingClients() {
@@ -415,6 +423,14 @@ void Server::insertToBuffer(char* p_dst, char* p_src) {
 
 
 /******************************************************************************
+ *
+ * 	Set running flag to 1, start pinging thread and enter main server loop.
+ * 	Make copy of main file descriptor made during initialization.
+ * 	Wait on select for changes and then either break or update clients.
+ * 	Breaks out only after CTRL+C or error on select.
+ * 	After loop, safely shutdown -- close all sockets and notify pinging thread,
+ * 	which is also joined in the end.
+ * 	If server broke out from loop, because of error on select, throw an exception.
  *
  */
 void Server::run() {

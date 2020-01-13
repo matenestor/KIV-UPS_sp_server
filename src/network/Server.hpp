@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "ClientManager.hpp"
-#include "PacketHandler.hpp"
 
 
 class Server {
@@ -27,8 +26,6 @@ private:
     /** Ping messages period in milliseconds. */
     constexpr static const int PING_PERIOD = 30000;
 
-    /** Handles received messages. */
-    PacketHandler hndPacket;
     /** Manages connected clients. */
     ClientManager mngClient;
 
