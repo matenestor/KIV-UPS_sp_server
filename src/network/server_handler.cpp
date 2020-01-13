@@ -1,9 +1,9 @@
 #include <cstring>
 #include <memory>
 
+#include "../system/defaults.hpp"
 #include "../system/Logger.hpp"
 #include "../system/signal.hpp"
-#include "server_handler.hpp"
 #include "Server.hpp"
 
 

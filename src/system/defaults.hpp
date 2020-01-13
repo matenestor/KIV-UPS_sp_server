@@ -1,5 +1,5 @@
-#ifndef SERVER_HANDLER_HPP
-#define SERVER_HANDLER_HPP
+#ifndef DEFAULTS_HPP
+#define DEFAULTS_HPP
 
 
 struct Defaults {
@@ -12,8 +12,6 @@ struct Defaults {
     // default count of game rooms
     int def_rooms;
 };
-
-void server_setup(Defaults&);
 
 
 #endif

@@ -144,6 +144,8 @@ fabric.properties
 
 # binaries
 bin/
+# object files
+obj/
 # logs
 log/
 # temporary/test file

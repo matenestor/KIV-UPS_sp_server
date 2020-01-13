@@ -1,10 +1,11 @@
 #include <iostream>
 
-#include "../network/server_handler.hpp"
+#include "defaults.hpp"
 #include "Logger.hpp"
 
 
-extern int parse_arguments(const int&, char const **, Defaults&);
+int parse_arguments(const int&, char const **, Defaults&);
+void server_setup(Defaults&);
 
 
 /******************************************************************************
