@@ -34,6 +34,8 @@ private:
 
     /** Mutex for pinging thread -- vector of clients is critical section. */
     std::mutex mtx;
+    /** Condition variable for pinging thread. Release after PING_PERIOD milliseconds. */
+    std::condition_variable cv;
 
     /** IPv4 address to run on. */
     char ipAddress[16]{};
@@ -71,6 +73,10 @@ private:
 
     /** Accept new client connections. */
 	void acceptClient();
+	/** Refuse connection, when server is full. */
+	void refuseClient();
+	/** Close client's connection. */
+	clientsIterator closeClient(clientsIterator&, const char*);
 	/** Receive message from client. */
 	int readClient(const int&);
     /** Serve client according to received message. */

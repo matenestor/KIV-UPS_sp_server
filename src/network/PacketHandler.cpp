@@ -44,7 +44,7 @@ int PacketHandler::isValidFormat(const std::string& msg) {
     return valid;
 }
 
-void PacketHandler::parseMsg(std::string msg, ClientData& data) {
+void PacketHandler::parseMsg(std::string msg, clientData& data) {
     std::smatch match;
 
     // search every brackets with data in message and emplace it to vector

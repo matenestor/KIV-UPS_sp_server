@@ -15,7 +15,6 @@
 void signalHandler(int signum) {
     logger->info("Interrupt signal received [%d].", signum);
     isRunning = 0;
-    cv.notify_one();
 }
 
 

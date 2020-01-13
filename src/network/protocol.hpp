@@ -7,9 +7,9 @@
 
 // same things with different name for better clarity in code
 /** Data received from client. */
-using ClientData = std::queue<std::string>;
+using clientData = std::queue<std::string>;
 /** Parsed data received from client */
-using Request = std::queue<std::string>;
+using request = std::queue<std::string>;
 
 namespace Protocol {
 
@@ -58,7 +58,7 @@ namespace Protocol {
     static const std::string SC_OPN_LEAVE    ("ol"); // opponent left the game
     static const std::string SC_OPN_EXIT     ("oe"); // opponent disconnected
     static const std::string SC_OPN_RECN     ("or"); // opponent reconnected
-    static const std::string SC_MANY_PLRS    ("t");  // too many players message
+    static const std::string SC_MANY_CLNT    ("t");  // too many clients message
     static const std::string SC_NAME_USED    ("u");  // name is already used
     static const std::string SC_KICK         ("k");  // kick client
 

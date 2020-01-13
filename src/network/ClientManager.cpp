@@ -33,7 +33,7 @@ ClientManager::ClientManager() {
 
 
 
-int ClientManager::processRequest(Request& request) {
+int ClientManager::processRequest(request& request) {
     int processed = 0;
 
     // loop over every data in queue
@@ -61,10 +61,10 @@ int ClientManager::processRequest(Request& request) {
  *
  *
  */
-int ClientManager::process(const int& client_num, ClientData& data) {
+int ClientManager::process(const int& client_num, clientData& data) {
     int processed = 0;
 
-    Request queue = Request();
+    request queue = request();
     std::string subdata{};
     std::smatch match_sd, match_kv;
 

@@ -26,13 +26,13 @@ private:
     int cli_reconnected;
 
     /** Process parsed client's request. */
-    int processRequest(Request&);
+    int processRequest(request&);
 
 public:
     ClientManager();
 
     /** Process received message for current client. */
-    int process(const int&, ClientData&);
+    int process(const int&, clientData&);
 
     /** Create new client connection. */
     void createClient(const int&);
@@ -49,7 +49,6 @@ public:
     void setClientState(Client*, State);
 
     // getters
-    /** Get clients count */
     [[nodiscard]] int getClientsCount() const;
     int getClientSocket(Client*) const;
     int getClientIdRoom(Client*) const;

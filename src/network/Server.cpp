@@ -124,6 +124,7 @@ void Server::init() {
 
 void Server::shutdown() {
     this->closeSockets();
+    this->cv.notify_one();
 }
 
 
@@ -150,8 +151,7 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
 
         // except file descriptor change
         if (FD_ISSET(client_socket, &fds_except)) {
-            FD_CLR(itr->getSocket(), &(this->sockets));
-            itr = this->mngClient.closeClient(itr, "except file descriptor error");
+            itr = this->closeClient(itr, "except file descriptor error");
             continue;
         }
 
@@ -167,8 +167,7 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
                 // successful message receive
                 if (received > 0) {
                     if (this->serveClient(*itr) != 0) {
-                        FD_CLR(itr->getSocket(), &(this->sockets));
-                        itr = this->mngClient.closeClient(itr, "violation of protocol");
+                        itr = this->closeClient(itr, "violation of protocol");
                         continue;
                     }
                 }
@@ -176,14 +175,12 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
 
             // client logout
             if (received == 0) {
-                FD_CLR(itr->getSocket(), &(this->sockets));
-                itr = this->mngClient.closeClient(itr, "logout");
+                itr = this->closeClient(itr, "logout");
                 continue;
             }
             // bad socket
             else if (received < 0) {
-                FD_CLR(itr->getSocket(), &(this->sockets));
-                itr = this->mngClient.closeClient(itr, "no message received");
+                itr = this->closeClient(itr, "no message received");
                 continue;
             }
         }
@@ -205,6 +202,8 @@ void Server::acceptClient() {
     // client socket index for file descriptor.
     int client_socket = 0;
 
+    int mmm = 0; // TODO
+
     // address of incoming connection
     struct sockaddr_in peer_addr{};
     // length of address of incoming connection
@@ -220,13 +219,39 @@ void Server::acceptClient() {
         // add new socket number to vector, for update loop
         this->mngClient.createClient(client_socket);
 
-        // TODO check if capacity for connected clients is not full
-
         logger->info("New connection on socket [%d].", client_socket);
+
+        // check if capacity for connected clients is not full
+        if (this->mngClient.getClientsCount() == this->maxClients) {
+            this->refuseClient();
+        }
+        else {
+            mmm = send(client_socket, "conn", 4*sizeof(char), 0);
+        }
     }
     else {
         logger->error("New connection could not be established. [%s]", std::strerror(errno));
     }
+}
+
+
+void Server::refuseClient() {
+    // new connected client
+    auto newClient = this->mngClient.getVectorOfClients().end() - 1;
+    // message about too many connections
+    std::string msg = Protocol::OP_SOH + Protocol::SC_MANY_CLNT + Protocol::OP_EOT;
+    // send it
+    int s = send(newClient->getSocket(), msg.c_str(), msg.length(), 0);
+    // and close connection
+    this->mngClient.closeClient(newClient, "Server is full.");
+}
+
+
+clientsIterator Server::closeClient(clientsIterator& itr, const char* reason) {
+    // server remove connection
+    FD_CLR(itr->getSocket(), &(this->sockets));
+    // client manager remove connection.. and return iterator on next client
+    return this->mngClient.closeClient(itr, reason);
 }
 
 
@@ -293,7 +318,7 @@ int Server::serveClient(Client& client) {
     // according to C standards, it is better to return 0 on success,
     // so this code doesn't give headaches on return values
     int valid = 0;
-    ClientData data = ClientData();
+    clientData data = clientData();
 
     if (this->hndPacket.isValidFormat(this->buffer) == 0) {
         this->hndPacket.parseMsg(this->buffer, data);
@@ -316,7 +341,7 @@ void Server::pingClients() {
     while (isRunning) {
         std::unique_lock<std::mutex> lock(mtx);
         this->mngClient.pingClients();
-        cv.wait_for(lock, std::chrono::milliseconds(PING_PERIOD));
+        this->cv.wait_for(lock, std::chrono::milliseconds(PING_PERIOD));
     }
 }
 
@@ -332,8 +357,7 @@ void Server::closeSockets() {
 
 void Server::closeClientSockets() {
     for (auto itr = this->mngClient.getVectorOfClients().begin(); itr != this->mngClient.getVectorOfClients().end(); ) {
-        FD_CLR(itr->getSocket(), &(this->sockets));
-        itr = this->mngClient.closeClient(itr, "server shutdown");
+        itr = this->closeClient(itr, "Server shutdown.");
     }
 }
 
@@ -380,6 +404,7 @@ void Server::insertToBuffer(char* p_dst, char* p_src) {
 void Server::run() {
     // return value of select
     int activity = 0;
+    int crash = 0;
 
     // sockets for comparing changes on sockets
     fd_set fdsRead{}, fdsExcept{};
@@ -410,8 +435,9 @@ void Server::run() {
 
         // crash server after error on select
         if (activity < 0) {
-            this->shutdown();
-            throw std::runtime_error(std::string("select is negative.."));
+            isRunning = 0;
+            crash = 1;
+            break;
         }
 
         // update clients -- accept, recv
@@ -421,13 +447,17 @@ void Server::run() {
         }
     }
 
-    // safely shutdown server after SIGINT
+    // safely shutdown server
     {
         const std::lock_guard<std::mutex> lock(this->mtx);
         this->shutdown();
     }
 
     pingThread.join();
+
+    if (crash) {
+        throw std::runtime_error(std::string("select is negative.."));
+    }
 }
 
 
