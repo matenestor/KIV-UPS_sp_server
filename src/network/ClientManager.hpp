@@ -25,21 +25,29 @@ private:
     int cli_disconnected;
     int cli_reconnected;
 
+    /** Total sent bytes. ClientManager is only sending. */
+    int bytesSend;
+
     /** Process parsed client's request. */
     int processRequest(request&);
 
 public:
+
     ClientManager();
 
     /** Process received message for current client. */
     int process(const int&, clientData&);
-
     /** Create new client connection. */
     void createClient(const int&);
     /** Disconnect client with bad socket. */
-    clientsIterator closeClient(clientsIterator& client, const char* reason);
+    clientsIterator eraseClient(clientsIterator& client, const char* reason);
+
+    /** Send message to client. */
+    int sendToClient(clientsIterator&, const std::string&);
+
     /** Asynchronous pinging clients. */
     void pingClients();
+
     /** Find connected client in private vector by socket. */
     Client* findClientBySocket(int);
     /** Find connected client in private vector by nick. */
@@ -60,6 +68,8 @@ public:
     int& getClientsConnected();
     int& getClientsDisconnected();
     int& getClientsReconnected();
+
+    int& getBytesSend();
 
     // printers
     void prAllClients() const;

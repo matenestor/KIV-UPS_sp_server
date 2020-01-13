@@ -44,7 +44,6 @@ Server::Server(const char* addr, const int& port, const int& clients, const int&
     this->clearBuffer(this->buffer);
 
     this->bytesRecv = 0;
-    this->bytesSend = 0;
 
 
     // initialize server
@@ -122,6 +121,11 @@ void Server::init() {
 }
 
 
+/******************************************************************************
+ *
+ * 	First close sockets, then notify pinging thread.
+ *
+ */
 void Server::shutdown() {
     this->closeSockets();
     this->cv.notify_one();
@@ -145,13 +149,21 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
         this->acceptClient();
     }
 
+    // check if capacity for connected clients is not full
+    if (this->mngClient.getClientsCount() == this->maxClients) {
+        this->refuseClient();
+    }
+
     // loop over all connected clients
-    for (auto itr = this->mngClient.getVectorOfClients().begin(); itr != this->mngClient.getVectorOfClients().end(); ) {
-        client_socket = itr->getSocket();
+    for (auto cli = this->mngClient.getVectorOfClients().begin();
+              cli != this->mngClient.getVectorOfClients().end();
+              /* no increment -- increment in the end of loop or by erase() */ ) {
+
+        client_socket = cli->getSocket();
 
         // except file descriptor change
         if (FD_ISSET(client_socket, &fds_except)) {
-            itr = this->closeClient(itr, "except file descriptor error");
+            cli = this->closeClient(cli, "except file descriptor error");
             continue;
         }
 
@@ -166,8 +178,8 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
 
                 // successful message receive
                 if (received > 0) {
-                    if (this->serveClient(*itr) != 0) {
-                        itr = this->closeClient(itr, "violation of protocol");
+                    if (this->serveClient(*cli) != 0) {
+                        cli = this->closeClient(cli, "violation of protocol");
                         continue;
                     }
                 }
@@ -175,34 +187,29 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
 
             // client logout
             if (received == 0) {
-                itr = this->closeClient(itr, "logout");
+                cli = this->closeClient(cli, "logout");
                 continue;
             }
             // bad socket
             else if (received < 0) {
-                itr = this->closeClient(itr, "no message received");
+                cli = this->closeClient(cli, "no message received");
                 continue;
             }
         }
 
-        ++itr;
+        ++cli;
     }
+
+    this->mngClient.prAllClients();
 }
 
 
 // ----- CLIENT MANAGING
 
 
-/******************************************************************************
- *
- *
- *
- */
 void Server::acceptClient() {
     // client socket index for file descriptor.
     int client_socket = 0;
-
-    int mmm = 0; // TODO
 
     // address of incoming connection
     struct sockaddr_in peer_addr{};
@@ -220,14 +227,6 @@ void Server::acceptClient() {
         this->mngClient.createClient(client_socket);
 
         logger->info("New connection on socket [%d].", client_socket);
-
-        // check if capacity for connected clients is not full
-        if (this->mngClient.getClientsCount() == this->maxClients) {
-            this->refuseClient();
-        }
-        else {
-            mmm = send(client_socket, "conn", 4*sizeof(char), 0);
-        }
     }
     else {
         logger->error("New connection could not be established. [%s]", std::strerror(errno));
@@ -237,21 +236,31 @@ void Server::acceptClient() {
 
 void Server::refuseClient() {
     // new connected client
-    auto newClient = this->mngClient.getVectorOfClients().end() - 1;
+    clientsIterator newClient = this->mngClient.getVectorOfClients().end() - 1;
+
     // message about too many connections
-    std::string msg = Protocol::OP_SOH + Protocol::SC_MANY_CLNT + Protocol::OP_EOT;
-    // send it
-    int s = send(newClient->getSocket(), msg.c_str(), msg.length(), 0);
+    this->mngClient.sendToClient(newClient, Protocol::SC_MANY_CLNT);
+
     // and close connection
-    this->mngClient.closeClient(newClient, "Server is full.");
+    this->closeClient(newClient, "server is full");
 }
 
 
-clientsIterator Server::closeClient(clientsIterator& itr, const char* reason) {
+/******************************************************************************
+ *
+ * 	The only valid method to call, in order to disconnect client.
+ * 	It clears socket in server's list of sockets, closes it,
+ * 	and then tells ClientManager to delete the client from its list.
+ *
+ */
+clientsIterator Server::closeClient(clientsIterator& client, const char* reason) {
     // server remove connection
-    FD_CLR(itr->getSocket(), &(this->sockets));
+    FD_CLR(client->getSocket(), &(this->sockets));
+    // close socket
+    close(client->getSocket());
+
     // client manager remove connection.. and return iterator on next client
-    return this->mngClient.closeClient(itr, reason);
+    return this->mngClient.eraseClient(client, reason);
 }
 
 
@@ -261,6 +270,7 @@ clientsIterator Server::closeClient(clientsIterator& itr, const char* reason) {
  *
  */
 int Server::readClient(const int& socket) {
+    int in_buffer = 0;
     int received = 0;
     int received_total = 0;
 
@@ -270,10 +280,10 @@ int Server::readClient(const int& socket) {
     this->clearBuffer(this->buffer);
 
     while(1) {
-        ioctl(socket, FIONREAD, &received);
+        ioctl(socket, FIONREAD, &in_buffer);
 
         // something is still there to read
-        if (received > 0) {
+        if (in_buffer > 0) {
             received = recv(socket, step_buffer, SIZE_RECV, 0);
 
             // read from client, until buffer is full
@@ -289,16 +299,15 @@ int Server::readClient(const int& socket) {
             }
         }
         // end of receiving
-        else if (received == 0) {
+        else if (in_buffer == 0) {
             logger->debug("End of receiving. Received: [%s]", this->buffer);
             break;
         }
 
         // client is flooding the server (not possible to fill 1KB buffer
         // during turn-based game, with used protocol, like this one)
-        if (received_total > SIZE_RECV - LONGEST_MSG || received < 0) {
+        if (received_total > SIZE_RECV - LONGEST_MSG || in_buffer < 0 || received < 0) {
             logger->warning("Server is being flooded. Going to disconnect client [%d].", socket);
-            received = -1;
             received_total = -1;
             break;
         }
@@ -337,6 +346,11 @@ int Server::serveClient(Client& client) {
 }
 
 
+/******************************************************************************
+ *
+ * 	Called by pinging threat to ping clients.
+ *
+ */
 void Server::pingClients() {
     while (isRunning) {
         std::unique_lock<std::mutex> lock(mtx);
@@ -356,8 +370,10 @@ void Server::closeSockets() {
 
 
 void Server::closeClientSockets() {
-    for (auto itr = this->mngClient.getVectorOfClients().begin(); itr != this->mngClient.getVectorOfClients().end(); ) {
-        itr = this->closeClient(itr, "Server shutdown.");
+    for (auto client = this->mngClient.getVectorOfClients().begin();
+              client != this->mngClient.getVectorOfClients().end();
+              /* no increment -- auto-incremented by erase() */) {
+        client = this->closeClient(client, "Server shutdown.");
     }
 }
 
@@ -462,11 +478,13 @@ void Server::run() {
 
 
 void Server::prStats() {
+    logger->info("--- Printing statistics ---");
     logger->info("Clients connected: %d",    this->mngClient.getClientsConnected());
     logger->info("Clients disconnected: %d", this->mngClient.getClientsDisconnected());
     logger->info("Clients reconnected: %d",  this->mngClient.getClientsReconnected());
     logger->info("Bytes received: %d",       this->bytesRecv);
-    logger->info("Bytes sent: %d",           this->bytesSend);
+    logger->info("Bytes sent: %d",           this->mngClient.getBytesSend());
+    logger->info("--- Printing statistics --- DONE");
 }
 
 

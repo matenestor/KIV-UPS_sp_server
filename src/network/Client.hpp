@@ -5,11 +5,13 @@
 
 
 enum State {
-    New            = 'n',
-    Waiting        = 'w',
-    PlayingTurn    = 't',
-    PlayingStandby = 's',
-    Disconnected   = 'd'
+    New,
+    Waiting,
+    PlayingTurn,
+    PlayingStandby,
+    Pinged,
+    ToDisconnect,
+    Lost
 };
 
 
@@ -38,6 +40,7 @@ public:
     [[nodiscard]] State getState() const;
 
     // printers
+    [[nodiscard]] std::string toStringState() const;
     [[nodiscard]] std::string toString() const;
 };
 

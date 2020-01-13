@@ -1,9 +1,8 @@
+#include <sys/socket.h>
 #include <iostream>
-#include <unistd.h>
 
 #include "../system/Logger.hpp"
 #include "ClientManager.hpp"
-#include "Server.hpp"
 
 
 // ---------- CONSTRUCTORS & DESTRUCTORS
@@ -19,9 +18,12 @@
  */
 ClientManager::ClientManager() {
     this->clients = std::vector<Client>();
+
     this->cli_connected = 0;
     this->cli_disconnected = 0;
     this->cli_reconnected = 0;
+
+    this->bytesSend = 0;
 }
 
 
@@ -110,8 +112,16 @@ void ClientManager::createClient(const int& socket) {
 }
 
 
-clientsIterator ClientManager::closeClient(clientsIterator& client, const char* reason) {
-    close(client->getSocket());
+/******************************************************************************
+ *
+ * 	This method MUST be called only from Server class in sake of consistency!
+ * 	When some client should be removed from list here, the client only must be
+ * 	marked as 'toErase' and Server then disconnects the client.
+ *
+ * 	TODO longterm: better architecture design
+ *
+ */
+clientsIterator ClientManager::eraseClient(clientsIterator& client, const char* reason) {
     this->cli_disconnected += 1;
 
     logger->info("Client on socket [%d] closed [%s], [%s]", client->getSocket(), reason, std::strerror(errno));
@@ -120,21 +130,56 @@ clientsIterator ClientManager::closeClient(clientsIterator& client, const char* 
 }
 
 
-void ClientManager::pingClients() {
+/******************************************************************************
+ *
+ * 	On success returns count of sent bytes, on failure returns -1.
+ *
+ */
+int ClientManager::sendToClient(clientsIterator& client, const std::string& _msg) {
+    // close message to protocol header and footer
+    std::string msg = Protocol::OP_SOH + _msg + Protocol::OP_EOT;
+    // make C string from msg in buffer
+    int msg_len = msg.length();
+    char buff[msg_len + 1];
+    strcpy(buff, msg.c_str());
+
     int sent = 0;
+    int sent_total = 0;
+    int failed_send_count = 3;
 
-    // ping all clients and disconnect those, who can't answer immediately
-    for (auto itr = this->clients.begin(); itr != this->clients.end(); ) {
-        sent = send(itr->getSocket(), Protocol::OP_PING.c_str(), 4, 0);
+    // send the message
+    while (sent_total < msg_len && failed_send_count > 0) {
+        sent = send(client->getSocket(), buff, msg_len * sizeof(char), 0);
 
-        logger->debug("pinging [%d]", itr->getSocket());
-
-        if (sent <= 0) {
-            itr = this->closeClient(itr, "client not available");
-            continue;
+        if (sent > 0) {
+            sent_total += sent;
         }
+        else {
+            --failed_send_count;
+        }
+    }
 
-        ++itr;
+    // increment even when send() was not finished
+    this->bytesSend += sent_total;
+
+    // if was unable to send message to client 3 times, mark client to disconnect
+    if (failed_send_count == 0) {
+        client->setState(ToDisconnect);
+        sent_total = -1;
+    }
+
+    return sent_total;
+}
+
+
+void ClientManager::pingClients() {
+    // ping all clients and disconnect those, who can't answer immediately
+    for (auto client = this->clients.begin(); client != this->clients.end(); ++client) {
+        logger->debug("pinging [%d]", client->getSocket());
+
+        if (this->sendToClient(client, Protocol::OP_PING) > 0) {
+            client->setState(Pinged);
+        }
     }
 }
 
@@ -166,13 +211,17 @@ Client* ClientManager::findClientByNick(const std::string& nick) {
     return wanted;
 }
 
+
 // ----- SETTERS
+
 
 void ClientManager::setClientState(Client* const client, State state) {
     client->setState(state);
 }
 
+
 // ----- GETTERS
+
 
 int ClientManager::getClientsCount() const {
     return this->clients.size();
@@ -210,12 +259,20 @@ int& ClientManager::getClientsReconnected() {
     return this->cli_reconnected;
 }
 
+int& ClientManager::getBytesSend() {
+    return this->bytesSend;
+}
+
+
 // ----- PRINTERS
 
+
 void ClientManager::prAllClients() const {
-    logger->debug("Printing all clients.");
+    logger->debug("--- Printing all clients. ---");
 
     for (const auto& client : clients) {
         logger->debug(client.toString().c_str());
     }
+
+    logger->debug("--- Printing all clients. --- DONE");
 }

@@ -71,12 +71,46 @@ State Client::getState() const {
 
 // ----- PRINTERS
 
+std::string Client::toStringState() const {
+    std::string state_str;
+    State state = this->getState();
+
+    switch (state) {
+        case New:
+            state_str = "new";
+            break;
+        case Waiting:
+            state_str = "waiting";
+            break;
+        case PlayingTurn:
+            state_str = "playing, on turn";
+            break;
+        case PlayingStandby:
+            state_str = "playing, standby";
+            break;
+        case Pinged:
+            state_str = "pinged";
+            break;
+        case ToDisconnect:
+            state_str = "to disconnect";
+            break;
+        case Lost:
+            state_str = "lost";
+            break;
+        default:
+            // never should get here
+            state_str = "unknown";
+    }
+
+    return state_str;
+}
+
 std::string Client::toString() const {
     std::stringstream out;
 
     out << "socket ["     << this->socket
         << "], nick ["    << this->nick
-        << "], state ["   << static_cast<char>(this->state)
+        << "], state ["   << this->toStringState()
         << "], id_room [" << this->id_room
         << "]";
 

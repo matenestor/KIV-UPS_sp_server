@@ -57,9 +57,8 @@ private:
     /** Buffer for receiving messages. */
     char buffer[SIZE_BUFF]{};
 
-    // received and sent bytes count
+    /** Total received bytes. Server is only receiving. */
     int bytesRecv;
-    int bytesSend;
 
     // --- METHODS ---
 
