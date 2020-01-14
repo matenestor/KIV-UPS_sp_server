@@ -34,12 +34,11 @@ namespace Protocol {
     static const std::string OP_PONG    ("<"); // acknowledge
 
     // client codes
-    static const std::string CC_CONN    ("c"); // connect request
-    static const std::string CC_RECN    ("r"); // reconnect request
-    static const std::string CC_NAME    ("n"); // name
+    static const std::string CC_CONN    ("c"); // connect
+    static const std::string CC_RECN    ("r"); // reconnect
+    static const std::string CC_DICN    ("d"); // disconnect
     static const std::string CC_MOVE    ("m"); // move
     static const std::string CC_LEAV    ("l"); // leave game
-    static const std::string CC_EXIT    ("e"); // exit connection
 
     // server codes
     static const std::string SC_RESP_CONN    ("rc"); // response connect
@@ -65,10 +64,10 @@ namespace Protocol {
     // chat code
     static const std::string OP_CHAT         ("ch"); // chat
 
-    // server regex -- valid format: (?:\{(?:<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100})\})+
-    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100})\})+)");
-    // server regex -- valid data in curly brackets: <|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100}
-    static const std::regex rgx_data(R"(<|>|c,n:\w{3,20}|r,n:\w{3,20}|m:\d{8}|l|e|ch:[\w\s.,!?]{1,100})");
+    // server regex -- valid format: (?:\{(?:<|>|c:\w{3,20}|r:\w{3,20}|d|m:\d{8}|l|ch:[\w\s.,!?]{1,100})\})+
+    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|r:\w{3,20}|d|m:\d{8}|l|ch:[\w\s.,!?]{1,100})\})+)");
+    // server regex -- valid data in curly brackets: <|>|c:\w{3,20}|r:\w{3,20}|d|m:\d{8}|l|ch:[\w\s.,!?]{1,100}
+    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|r:\w{3,20}|d|m:\d{8}|l|ch:[\w\s.,!?]{1,100})");
     // server regex -- valid subdata in data: [^,]+
     static const std::regex rgx_subdata(R"([^,]+)");
     // server regex -- valid keys and values in subdata: [^:]+

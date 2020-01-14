@@ -25,6 +25,8 @@ private:
     std::string nick;
     /** Player's state during connection. */
     State state;
+    /** Store last client's state after pinging. */
+    State stateLast;
 
 public:
     Client(const int&);
@@ -32,12 +34,14 @@ public:
     // setters
     void setNick(const std::string&);
     void setState(State s);
+    void setStateLast(State s);
 
     // getters
     [[nodiscard]] int getSocket() const;
     [[nodiscard]] int getIdRoom() const;
     [[nodiscard]] const std::string& getNick() const;
     [[nodiscard]] State getState() const;
+    [[nodiscard]] State getStateLast() const;
 
     // printers
     [[nodiscard]] std::string toStringState() const;

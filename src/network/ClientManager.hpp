@@ -29,21 +29,21 @@ private:
     int bytesSend;
 
     /** Process parsed client's request. */
-    int processRequest(request&);
+    int processRequest(Client&, request&);
 
 public:
 
     ClientManager();
 
     /** Process received message for current client. */
-    int process(const int&, clientData&);
+    int process(Client&, clientData&);
     /** Create new client connection. */
     void createClient(const int&);
     /** Disconnect client with bad socket. */
     clientsIterator eraseClient(clientsIterator& client, const char* reason);
 
     /** Send message to client. */
-    int sendToClient(clientsIterator&, const std::string&);
+    int sendToClient(Client&, const std::string&);
 
     /** Asynchronous pinging clients. */
     void pingClients();

@@ -166,6 +166,12 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
               cli != this->mngClient.getVectorOfClients().end();
               /* no increment -- increment in the end of loop or by erase() */ ) {
 
+        // check if client is marked as ToDisconnect
+        if (cli->getState() == ToDisconnect) {
+            cli = this->closeClient(cli, "marked as ToDisconnect");
+            continue;
+        }
+
         client_socket = cli->getSocket();
 
         // except file descriptor change
@@ -187,6 +193,13 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
                 if (received > 0) {
                     if (this->serveClient(*cli) != 0) {
                         cli = this->closeClient(cli, "violation of protocol");
+                        continue;
+                    }
+
+                    // check if client is marked as ToDisconnect again, because client
+                    // might become one, after serving (CC_DICN)
+                    if (cli->getState() == ToDisconnect) {
+                        cli = this->closeClient(cli, "marked as ToDisconnect");
                         continue;
                     }
                 }
@@ -246,7 +259,7 @@ void Server::refuseClient() {
     auto newClient = this->mngClient.getVectorOfClients().end() - 1;
 
     // message about too many connections
-    this->mngClient.sendToClient(newClient, Protocol::SC_MANY_CLNT);
+    this->mngClient.sendToClient(*newClient, Protocol::SC_MANY_CLNT);
 
     // and close connection
     this->closeClient(newClient, "server is full");
@@ -328,7 +341,7 @@ int Server::readClient(const int& socket) {
 /******************************************************************************
  *
  *
- * 	@return If client was successfully served, returns 0, else return 1.
+ * 	@return If client was successfully served, returns 0, else return -1.
  *
  */
 int Server::serveClient(Client& client) {
@@ -347,7 +360,7 @@ int Server::serveClient(Client& client) {
 
     // always should be true, when message is in valid format
     if (!data.empty()) {
-        valid = this->mngClient.process(client.getSocket(), data);
+        valid = this->mngClient.process(client, data);
     }
 
     return valid;

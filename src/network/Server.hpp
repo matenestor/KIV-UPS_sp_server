@@ -72,7 +72,7 @@ private:
 	/** Refuse connection, when server is full. */
 	void refuseClient();
 	/** Close client's connection. */
-	clientsIterator closeClient(clientsIterator&, const char*);
+    clientsIterator closeClient(clientsIterator&, const char*);
 	/** Receive message from client. */
 	int readClient(const int&);
     /** Serve client according to received message. */

@@ -47,6 +47,10 @@ void Client::setState(State s) {
     this->state = s;
 }
 
+void Client::setStateLast(State s) {
+    this->stateLast = s;
+}
+
 void Client::setNick(const std::string& n) {
     this->nick = n;
 }
@@ -67,6 +71,10 @@ const std::string& Client::getNick() const {
 
 State Client::getState() const {
     return this->state;
+}
+
+State Client::getStateLast() const {
+    return this->stateLast;
 }
 
 // ----- PRINTERS

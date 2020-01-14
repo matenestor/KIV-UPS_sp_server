@@ -11,11 +11,6 @@
 
 
 
-/******************************************************************************
- *
- *
- *
- */
 ClientManager::ClientManager() {
     this->clients = std::vector<Client>();
 
@@ -35,14 +30,71 @@ ClientManager::ClientManager() {
 
 
 
-int ClientManager::processRequest(request& request) {
+/******************************************************************************
+ *
+ * 	If everything was processed successfully, return 0, else return -1
+ * 	eg. when client can't receive actual data according to one's state
+ * 	or when invalid move for game is received.
+ *
+ */
+int ClientManager::processRequest(Client& client, request& rqst) {
     int processed = 0;
+    std::string key, value;
 
     // loop over every data in queue
-    while (!request.empty()) {
-        // TODO
-        logger->debug("dato [%s] in requst", request.front().c_str());
-        request.pop();
+    while (!rqst.empty()) {
+        // get first in queue
+        key = rqst.front();
+
+        // pong acknowledge
+        if (key == Protocol::OP_PONG && client.getState() == Pinged) {
+            client.setState(client.getStateLast());
+        }
+
+        // connection request
+        if (key == Protocol::CC_CONN && client.getState() == New) {
+            // key is ok
+            rqst.pop();
+            // take its value
+            value = rqst.front();
+
+            client.setNick(value);
+            client.setState(Waiting);
+            // TODO move client to Lobby
+        }
+        // reconnection request
+        else if (key == Protocol::CC_RECN
+                && (client.getState() == Lost
+                    || client.getState() == Pinged)) {
+            // TODO reconnect
+        }
+        // move in game request
+        else if (key == Protocol::CC_MOVE && client.getState() == PlayingTurn) {
+            // TODO move in client's GameHnefatafl -> swap states of players (if both Playing*)
+        }
+        // leave the game request
+        else if (key == Protocol::CC_LEAV
+                && (client.getState() == PlayingTurn
+                    || client.getState() == PlayingStandby)) {
+            // TODO notify oppoent about client Leaving, move opponent to Lobby, and quit their game
+        }
+        // disconnect server request
+        else if (key == Protocol::CC_DICN) {
+            client.setState(ToDisconnect);
+            // TODO notify oppoent about client disconnect, move opponent to Lobby, and quit their game
+        }
+        // ping enquiry
+        else if (key == Protocol::OP_PING) {
+            this->sendToClient(client, Protocol::OP_PONG);
+        }
+        // violation of server logic leads to disconnection of client
+        else {
+            processed = -1;
+            break;
+        }
+
+        // go to next in queue
+        rqst.pop();
     }
 
     return processed;
@@ -63,41 +115,38 @@ int ClientManager::processRequest(request& request) {
  *
  *
  */
-int ClientManager::process(const int& client_num, clientData& data) {
+int ClientManager::process(Client& client, clientData& data) {
     int processed = 0;
 
-    request queue = request();
+    request rqst = request();
     std::string subdata{};
     std::smatch match_sd, match_kv;
 
-    // loop over every data in queue
+    // loop over every data in rqst queue {...}
     while (!data.empty()) {
-        // parse every subdata from data [^,]+
+        // parse every subdata from data R("[^,]+")
         while (regex_search(data.front(), match_sd, Protocol::rgx_subdata)) {
             subdata = match_sd.str();
 
-            // parse every key-value from subdata [^:]+
+            // parse every key-value from subdata R("[^:]+")
             while (regex_search(subdata, match_kv, Protocol::rgx_key_value)) {
-                // insert it to queue request vector
-                queue.emplace(match_kv.str());
+                // insert it to rqst queue
+                rqst.emplace(match_kv.str());
                 subdata = match_kv.suffix();
             }
 
             data.front() = match_sd.suffix();
         }
 
+        // pop just processed data
         data.pop();
 
         // finally process client's request
-        if (this->processRequest(queue) != 0) {
-            // if request couldn't be processed, stop and set return value to failure
+        if (this->processRequest(client, rqst) != 0) {
+            // if request couldn't be processed, stop and set return value to -1 (failure)
             // eg. if client sent message in valid format, but it is not valid in terms
             // of server logic or game logic (sbdy is h4ck1ng w/ t3ln3t..)
-            processed = 1;
-            // clear queue of request data before leaving
-            while (!data.empty()) {
-                data.pop();
-            }
+            processed = -1;
             break;
         }
     }
@@ -135,7 +184,7 @@ clientsIterator ClientManager::eraseClient(clientsIterator& client, const char* 
  * 	On success returns count of sent bytes, on failure returns -1.
  *
  */
-int ClientManager::sendToClient(clientsIterator& client, const std::string& _msg) {
+int ClientManager::sendToClient(Client& client, const std::string& _msg) {
     // close message to protocol header and footer
     std::string msg = Protocol::OP_SOH + _msg + Protocol::OP_EOT;
     // make C string from msg in buffer
@@ -149,7 +198,7 @@ int ClientManager::sendToClient(clientsIterator& client, const std::string& _msg
 
     // send the message
     while (sent_total < msg_len && failed_send_count > 0) {
-        sent = send(client->getSocket(), buff, msg_len * sizeof(char), 0);
+        sent = send(client.getSocket(), buff, msg_len * sizeof(char), 0);
 
         if (sent > 0) {
             sent_total += sent;
@@ -164,7 +213,7 @@ int ClientManager::sendToClient(clientsIterator& client, const std::string& _msg
 
     // if was unable to send message to client 3 times, mark client to disconnect
     if (failed_send_count == 0) {
-        client->setState(ToDisconnect);
+        client.setState(ToDisconnect);
         sent_total = -1;
     }
 
@@ -177,7 +226,19 @@ void ClientManager::pingClients() {
     for (auto client = this->clients.begin(); client != this->clients.end(); ++client) {
         logger->debug("pinging [%d]", client->getSocket());
 
-        if (this->sendToClient(client, Protocol::OP_PING) > 0) {
+        // if client was already pinged and did not respond since, mark one as Lost
+        if (client->getState() == Pinged) {
+            // TODO if stateLast was Playing*, send massage to opponent about Lost
+            client->setState(Lost);
+        }
+        // if client was Lost and did not respond since, mark one as Lost
+        else if (client->getState() == Lost) {
+            // TODO if stateLast was Playing*, send massage to opponent about Disconnetion, move opponent to Lobby, and quit game
+            client->setState(ToDisconnect);
+        }
+        // send ping message to client
+        if (this->sendToClient(*client, Protocol::OP_PING) > 0) {
+            client->setStateLast(client->getState());
             client->setState(Pinged);
         }
     }
