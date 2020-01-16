@@ -36,7 +36,6 @@ namespace Protocol {
     // client codes
     static const std::string CC_CONN    ("c"); // connect
     static const std::string CC_RECN    ("r"); // reconnect
-    static const std::string CC_DICN    ("d"); // disconnect
     static const std::string CC_MOVE    ("m"); // move
     static const std::string CC_LEAV    ("l"); // leave game
 
@@ -60,21 +59,23 @@ namespace Protocol {
     static const std::string SC_MANY_CLNT    ("t");  // too many clients message
     static const std::string SC_NAME_USED    ("u");  // name is already used
     static const std::string SC_KICK         ("k");  // kick client
+    static const std::string SC_SHDW         ("s");  // server shutdown
 
     // chat code
     static const std::string OP_CHAT         ("ch"); // chat
 
-    // server regex -- valid format: (?:\{(?:<|>|c:\w{3,20}|r:\w{3,20}|d|m:\d{8}|l|ch:[\w\s.,!?]{1,100})\})+
-    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|r:\w{3,20}|d|m:\d{8}|l|ch:[\w\s.,!?]{1,100})\})+)");
-    // server regex -- valid data in curly brackets: <|>|c:\w{3,20}|r:\w{3,20}|d|m:\d{8}|l|ch:[\w\s.,!?]{1,100}
-    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|r:\w{3,20}|d|m:\d{8}|l|ch:[\w\s.,!?]{1,100})");
-    // server regex -- valid subdata in data: [^,]+
-    static const std::regex rgx_subdata(R"([^,]+)");
+
+    // server regex -- valid format:            (?:\{(?:<|>|c:\w{3,20}|r:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})\})+
+    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|r:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})\})+)");
+
+    // server regex -- valid data:      <|>|c:\w{3,20}|r:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100}    ..in curly brackets
+    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|r:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})");
+
     // server regex -- valid keys and values in subdata: [^:]+
     static const std::regex rgx_key_value(R"([^:]+)");
 
-    // client regex -- valid format: (?:\{(?:<|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|ch:[\w\s.,!?]{1,100})\})+
-    // client regex -- valid data in curly brackets: <|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|ch:[\w\s.,!?]{1,100}
+    // client regex -- valid format:         (?:\{(?:<|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|s|ch:[\w\s.,!?]{1,100})\})+
+    // client regex -- valid data in curly brackets: <|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|s|ch:[\w\s.,!?]{1,100}
 }
 
 

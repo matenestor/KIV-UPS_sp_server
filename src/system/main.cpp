@@ -18,8 +18,8 @@ void pr_help() {
     "\nGame server of Hnefatafl is runned by thy commands, which follows:\n\n"
     "Usage: hnefserver [options]\n"
     "Options:\n"
-    "  -a    IPv4 address                   default: 127.0.0.0\n\n"
-    "  -p    Port                           default: 10000\n"
+    "  -a    IPv4 address                   default: 0.0.0.0\n\n"
+    "  -p    Port                           default: 4567\n"
     "                                       range: <1024;49151>\n"
     "  -c    Max count of connected clients default: 10\n"
     "                                       range: <2;20>\n"
@@ -41,7 +41,7 @@ int main(int argc, char const **argv) {
     logger->setLevel(Trace);
 
     // default server parameters
-    Defaults defs{"127.0.0.1", 10000, 10, 5};
+    Defaults defs{"0.0.0.0", 4567, 10, 5};
 
     // parse terminal arguments
     int rv = parse_arguments(argc, argv, defs);

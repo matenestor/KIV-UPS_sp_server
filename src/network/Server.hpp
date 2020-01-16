@@ -24,7 +24,7 @@ private:
     /** Longest valid message server may accept (chat). */
     constexpr static const int LONGEST_MSG = 106;
     /** Ping messages period in milliseconds. */
-    constexpr static const int PING_PERIOD = 30000;
+    constexpr static const int PING_PERIOD = 5000;
 
     /** Manages connected clients. */
     ClientManager mngClient;
@@ -34,10 +34,6 @@ private:
     /** Condition variable for pinging thread. Release after PING_PERIOD milliseconds. */
     std::condition_variable cv;
 
-    /** IPv4 address to run on. */
-    char ipAddress[16]{};
-    /** Port number to be connected to. */
-    int port;
     /** Maximum count of connected clients. One extra for the one client,
      * who reaches maximum capacity and is disconnected after "max capacity" message. */
     int maxClients;
@@ -60,7 +56,7 @@ private:
     // --- METHODS ---
 
 	/** Initialize server. (called from constructor) */
-	void init();
+	void init(const char*, const int&);
 	/** Shutddown server. (called in Server::run() after while loop. */
 	void shutdown();
 
@@ -68,16 +64,18 @@ private:
     void updateClients(fd_set&, fd_set&);
 
     /** Accept new client connections. */
-	void acceptClient();
+	void acceptConnection();
 	/** Refuse connection, when server is full. */
-	void refuseClient();
+	void refuseConnection();
 	/** Close client's connection. */
-    clientsIterator closeClient(clientsIterator&, const char*);
+    clientsIterator closeConnection(clientsIterator&, const char*);
+
 	/** Receive message from client. */
 	int readClient(const int&);
     /** Serve client according to received message. */
     int serveClient(Client&);
-    /** Pinging clients, in order to prevent unnecessary waiting for them. */
+
+    /** Asynchronous pinging clients. */
     void pingClients();
 
     /** Calls methods to close both server and client sockets. */

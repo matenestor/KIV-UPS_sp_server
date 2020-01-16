@@ -12,6 +12,7 @@ using clientsIterator = std::vector<Client>::iterator;
 
 class ClientManager {
 private:
+
     /** Vector of clients. */
     std::vector<Client> clients;
 
@@ -39,37 +40,26 @@ public:
     int process(Client&, clientData&);
     /** Create new client connection. */
     void createClient(const int&);
-    /** Disconnect client with bad socket. */
-    clientsIterator eraseClient(clientsIterator& client, const char* reason);
+    /** Erase client from vector. */
+    clientsIterator eraseClient(clientsIterator& client);
 
     /** Send message to client. */
     int sendToClient(Client&, const std::string&);
 
-    /** Asynchronous pinging clients. */
-    void pingClients();
-
     /** Find connected client in private vector by socket. */
-    Client* findClientBySocket(int);
+    clientsIterator findClientBySocket(int);
     /** Find connected client in private vector by nick. */
-    Client* findClientByNick(const std::string&);
-
-    // setters
-    void setClientState(Client*, State);
+    clientsIterator findClientByNick(const std::string&);
 
     // getters
-    [[nodiscard]] int getClientsCount() const;
-    int getClientSocket(Client*) const;
-    int getClientIdRoom(Client*) const;
-    const std::string& getClientNick(Client*) const;
-    State getClientState(Client*) const;
-
-    std::vector<Client>& getVectorOfClients();
-
-    int& getClientsConnected();
-    int& getClientsDisconnected();
-    int& getClientsReconnected();
-
+    [[nodiscard]] int getCountClients() const;
+    int& getCountConnected();
+    int& getCountDisconnected();
+    int& getCountReconnected();
     int& getBytesSend();
+
+    /** Access to private vector of clients. */
+    std::vector<Client>& getVectorOfClients();
 
     // printers
     void prAllClients() const;

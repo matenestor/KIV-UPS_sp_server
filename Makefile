@@ -4,7 +4,10 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall -O -pthread
 
 # name of executable
-BIN = hnefserver
+BIN = hnefsrv
+
+# logging directory
+DIR_LOG = log/
 
 # source directory
 DIR_SRC = src/
@@ -29,7 +32,7 @@ OBJ = $(patsubst $(DIR_SRC)%,$(DIR_OBJ)%.o,$(SRC))
 RM = rm -rf
 
 
-all: mkdirobj $(BIN)
+all: mkdirs $(BIN)
 
 $(BIN): $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $(DIR_BIN)$@ $^
@@ -40,11 +43,13 @@ $(DIR_OBJ)%.o: $(DIR_SRC)% $(HDR)
 .PHONY: all
 
 
-mkdirobj:
+mkdirs:
+	mkdir -p $(DIR_LOG)
+	mkdir -p $(DIR_BIN)
 	mkdir -p $(DIR_OBJ)
 	mkdir -p $(patsubst %,$(DIR_OBJ)%,$(DIR_SUBD))
 	
-.PHONY: mkdirobj
+.PHONY: mkdirs
 
 
 clean:

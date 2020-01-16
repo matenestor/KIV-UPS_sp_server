@@ -33,8 +33,6 @@
 
 Server::Server(const char* addr, const int& port, const int& clients, const int& rooms) {
     // basic initialization
-    strcpy(this->ipAddress, addr);
-    this->port       = port;
     this->maxClients = clients + 1; // +1 for client, who is told, that server is full
     this->maxRooms   = rooms;
 
@@ -46,10 +44,9 @@ Server::Server(const char* addr, const int& port, const int& clients, const int&
 
     this->bytesRecv = 0;
 
-
     // initialize server
     try {
-        this->init();
+        this->init(addr, port);
     }
     catch (const std::exception& ex) {
         logger->error("%s [%s]. IP address [%s] port: [%d] ", ex.what(), std::strerror(errno), addr, port);
@@ -78,7 +75,7 @@ Server::Server(const char* addr, const int& port, const int& clients, const int&
  * and sets server file descriptor.
  *
  */
-void Server::init() {
+void Server::init(const char* ipAddress, const int& port) {
     // --- INIT SOCKET ---
 
     // create server socket
@@ -93,9 +90,9 @@ void Server::init() {
 
     // fill server socket
     this->serverAddress.sin_family = AF_INET;
-    this->serverAddress.sin_port = htons(this->port);
+    this->serverAddress.sin_port = htons(port);
 
-    if (inet_pton(AF_INET, this->ipAddress, &this->serverAddress.sin_addr.s_addr) != 1) {
+    if (inet_pton(AF_INET, ipAddress, &this->serverAddress.sin_addr.s_addr) != 1) {
         throw std::runtime_error(std::string("Unable to assign IP address to server."));
     }
 
@@ -128,6 +125,8 @@ void Server::init() {
  *
  */
 void Server::shutdown() {
+    logger->info("Server shutting down.");
+
     this->closeSockets();
     this->cv.notify_one();
 }
@@ -153,12 +152,12 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
 
     // server socket -- request for new connection
     if (FD_ISSET(this->serverSocket, &fds_read)) {
-        this->acceptClient();
+        this->acceptConnection();
     }
 
     // check if capacity for connected clients is not full
-    if (this->mngClient.getClientsCount() == this->maxClients) {
-        this->refuseClient();
+    if (this->mngClient.getCountClients() == this->maxClients) {
+        this->refuseConnection();
     }
 
     // loop over all connected clients
@@ -166,17 +165,11 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
               cli != this->mngClient.getVectorOfClients().end();
               /* no increment -- increment in the end of loop or by erase() */ ) {
 
-        // check if client is marked as ToDisconnect
-        if (cli->getState() == ToDisconnect) {
-            cli = this->closeClient(cli, "marked as ToDisconnect");
-            continue;
-        }
-
         client_socket = cli->getSocket();
 
         // except file descriptor change
         if (FD_ISSET(client_socket, &fds_except)) {
-            cli = this->closeClient(cli, "except file descriptor error");
+            cli = this->closeConnection(cli, "except file descriptor error");
             continue;
         }
 
@@ -192,14 +185,10 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
                 // successful message receive
                 if (received > 0) {
                     if (this->serveClient(*cli) != 0) {
-                        cli = this->closeClient(cli, "violation of protocol");
-                        continue;
-                    }
+                        // message about too many connections
+                        this->mngClient.sendToClient(*cli, Protocol::SC_KICK);
 
-                    // check if client is marked as ToDisconnect again, because client
-                    // might become one, after serving (CC_DICN)
-                    if (cli->getState() == ToDisconnect) {
-                        cli = this->closeClient(cli, "marked as ToDisconnect");
+                        cli = this->closeConnection(cli, "violation of protocol");
                         continue;
                     }
                 }
@@ -207,12 +196,12 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
 
             // client logout
             if (received == 0) {
-                cli = this->closeClient(cli, "logout");
+                cli = this->closeConnection(cli, "logout");
                 continue;
             }
             // bad socket
             else if (received < 0) {
-                cli = this->closeClient(cli, "no message received");
+                cli = this->closeConnection(cli, "no message received");
                 continue;
             }
         }
@@ -227,7 +216,7 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
 // ----- CLIENT MANAGING
 
 
-void Server::acceptClient() {
+void Server::acceptConnection() {
     // client socket index for file descriptor.
     int client_socket = 0;
 
@@ -242,55 +231,51 @@ void Server::acceptClient() {
     if (client_socket > 0) {
         // set new connection to file descriptor
         FD_SET(client_socket, &(this->sockets));
-        this->mngClient.getClientsConnected() += 1;
         // add new socket number to vector, for update loop
         this->mngClient.createClient(client_socket);
 
         logger->info("New connection on socket [%d].", client_socket);
     }
     else {
-        logger->error("New connection could not be established. [%s]", std::strerror(errno));
+        logger->error("New connection on socket [%s] could not be established.", std::strerror(errno));
     }
 }
 
 
-void Server::refuseClient() {
+void Server::refuseConnection() {
     // new connected client
     auto newClient = this->mngClient.getVectorOfClients().end() - 1;
+
+    logger->debug("Refusing client on socket [%d].", newClient->getSocket());
 
     // message about too many connections
     this->mngClient.sendToClient(*newClient, Protocol::SC_MANY_CLNT);
 
     // and close connection
-    this->closeClient(newClient, "server is full");
+    this->closeConnection(newClient, "server is full");
 }
 
 
-/******************************************************************************
- *
- * 	The only valid method to call, in order to disconnect client.
- * 	It clears socket in server's list of sockets, closes it,
- * 	and then tells ClientManager to delete the client from its list.
- *
- */
-clientsIterator Server::closeClient(clientsIterator& client, const char* reason) {
+clientsIterator Server::closeConnection(clientsIterator& client, const char* reason) {
     // server remove connection
     FD_CLR(client->getSocket(), &(this->sockets));
     // close socket
     close(client->getSocket());
 
-    // client manager remove connection.. and return iterator on next client
-    return this->mngClient.eraseClient(client, reason);
+    logger->info("Client on socket [%d] closed [%s], [%s]", client->getSocket(), reason, std::strerror(errno));
+
+    // erase client from vector in ClientManager.. and return iterator on next client
+    return this->mngClient.eraseClient(client);
 }
 
 
 /******************************************************************************
  *
  *  Read while there is something in buffer to read or while class buffer is not full.
- *  If class buffer is full, disconnect client, becauase client is flooding the server.
+ *  If class buffer is full, disconnect client, because client is flooding the server.
  *
  */
-int Server::readClient(const int& socket) {
+int Server::readClient(const int& sock) {
     int in_buffer = 0;
     int received = 0;
     int received_total = 0;
@@ -301,11 +286,11 @@ int Server::readClient(const int& socket) {
     this->clearBuffer(this->buffer);
 
     while(1) {
-        ioctl(socket, FIONREAD, &in_buffer);
+        ioctl(sock, FIONREAD, &in_buffer);
 
         // something is still there to read
         if (in_buffer > 0) {
-            received = recv(socket, step_buffer, SIZE_RECV, 0);
+            received = recv(sock, step_buffer, SIZE_RECV, 0);
 
             // read from client, until buffer is full
             if (received_total < SIZE_RECV - LONGEST_MSG && received >= 0) {
@@ -321,14 +306,14 @@ int Server::readClient(const int& socket) {
         }
         // end of receiving
         else if (in_buffer == 0) {
-            logger->debug("End of receiving. Received: [%s]", this->buffer);
+            logger->debug("End of receiving from client on socket [%d], in buffer: [%s]", sock, this->buffer);
             break;
         }
 
         // client is flooding the server (not possible to fill 1KB buffer
         // during turn-based game, with used protocol, like this one)
         if (received_total > SIZE_RECV - LONGEST_MSG || in_buffer < 0 || received < 0) {
-            logger->warning("Server is being flooded. Going to disconnect client [%d].", socket);
+            logger->warning("Server is being flooded. Going to disconnect client on socket [%d].", sock);
             received_total = -1;
             break;
         }
@@ -340,8 +325,8 @@ int Server::readClient(const int& socket) {
 
 /******************************************************************************
  *
- *
- * 	@return If client was successfully served, returns 0, else return -1.
+ * Check if received data are valid, parse the data and then pass it to ClientManager to process it.
+ * If client was successfully served, returns 0, else return -1.
  *
  */
 int Server::serveClient(Client& client) {
@@ -354,7 +339,7 @@ int Server::serveClient(Client& client) {
         parseMsg(this->buffer, data);
     }
     else {
-        logger->warning("Server received invalid data. Going to disconnect client [%d].", client.getSocket());
+        logger->warning("Server received invalid data from socket [%d].", client.getSocket());
         valid = 1;
     }
 
@@ -373,9 +358,48 @@ int Server::serveClient(Client& client) {
  *
  */
 void Server::pingClients() {
+    int sock;
+
     while (isRunning) {
         std::unique_lock<std::mutex> lock(mtx);
-        this->mngClient.pingClients();
+
+        // ping all clients and disconnect those, who can't answer immediately
+        for (auto client = this->mngClient.getVectorOfClients().begin();
+                  client != this->mngClient.getVectorOfClients().end();
+                  /** no increment here */) {
+
+            sock = client->getSocket();
+            logger->debug("Pinging socket [%d].", sock);
+
+            // if client was already pinged and did not respond with pong since, mark one as Lost
+            if (client->getState() == Pinged) {
+                logger->debug("Socket [%d] already pinged. Setting to 'Lost'.", sock);
+
+                // TODO if stateLast was Playing*, send massage to opponent about Lost
+                client->setState(Lost);
+            }
+            // if client was Lost and did not respond since with reconnect request,
+            // client is considered as "not responding"
+            else if (client->getState() == Lost) {
+                logger->debug("Socket [%d] Lost. Closing..", sock);
+
+                this->mngClient.sendToClient(*client, Protocol::SC_KICK);
+                client = this->closeConnection(client, "not responding");
+                continue;
+            }
+            // send ping message to client
+            else {
+                if (this->mngClient.sendToClient(*client, Protocol::OP_PING) > 0) {
+                    client->setStateLast(client->getState());
+                    client->setState(Pinged);
+
+                    logger->debug("Socket [%d] pinged.", sock);
+                }
+            }
+
+            ++client;
+        }
+
         this->cv.wait_for(lock, std::chrono::milliseconds(PING_PERIOD));
     }
 }
@@ -391,15 +415,23 @@ void Server::closeSockets() {
 
 
 void Server::closeClientSockets() {
+    logger->debug("Closing client sockets.");
+
     for (auto client = this->mngClient.getVectorOfClients().begin();
               client != this->mngClient.getVectorOfClients().end();
               /* no increment -- auto-incremented by erase() */) {
-        client = this->closeClient(client, "Server shutdown.");
+
+        // message about server shutdown
+        this->mngClient.sendToClient(*client, Protocol::SC_SHDW);
+
+        client = this->closeConnection(client, "Server shutdown.");
     }
 }
 
 
 void Server::closeServerSocket() {
+    logger->debug("Closing server socket.");
+
     close(this->serverSocket);
     FD_CLR(this->serverSocket, &(this->sockets));
 
@@ -508,9 +540,9 @@ void Server::run() {
 
 void Server::prStats() {
     logger->info("--- Printing statistics ---");
-    logger->info("Clients connected: %d",    this->mngClient.getClientsConnected());
-    logger->info("Clients disconnected: %d", this->mngClient.getClientsDisconnected());
-    logger->info("Clients reconnected: %d",  this->mngClient.getClientsReconnected());
+    logger->info("Clients connected: %d",    this->mngClient.getCountConnected());
+    logger->info("Clients disconnected: %d", this->mngClient.getCountDisconnected());
+    logger->info("Clients reconnected: %d",  this->mngClient.getCountReconnected());
     logger->info("Bytes received: %d",       this->bytesRecv);
     logger->info("Bytes sent: %d",           this->mngClient.getBytesSend());
     logger->info("--- Printing statistics --- DONE");
@@ -521,11 +553,11 @@ void Server::prStats() {
 
 
 char* Server::getIPaddress() {
-    return this->ipAddress;
+    return inet_ntoa(this->serverAddress.sin_addr);
 }
 
 int Server::getPort() {
-    return this->port;
+    return ntohs(this->serverAddress.sin_port);
 }
 
 int Server::getMaxClients() {

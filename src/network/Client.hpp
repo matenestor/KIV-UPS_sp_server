@@ -10,7 +10,6 @@ enum State {
     PlayingTurn,
     PlayingStandby,
     Pinged,
-    ToDisconnect,
     Lost
 };
 

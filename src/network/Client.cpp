@@ -18,6 +18,7 @@ Client::Client(const int& s) {
     this->socket = s;
     this->id_room = 0;
     this->state = New;
+    this->stateLast = New;
 }
 
 
@@ -81,9 +82,8 @@ State Client::getStateLast() const {
 
 std::string Client::toStringState() const {
     std::string state_str;
-    State state = this->getState();
 
-    switch (state) {
+    switch (this->state) {
         case New:
             state_str = "new";
             break;
@@ -98,9 +98,6 @@ std::string Client::toStringState() const {
             break;
         case Pinged:
             state_str = "pinged";
-            break;
-        case ToDisconnect:
-            state_str = "to disconnect";
             break;
         case Lost:
             state_str = "lost";
