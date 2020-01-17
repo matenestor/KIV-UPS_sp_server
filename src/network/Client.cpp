@@ -15,6 +15,7 @@
  *
  */
 Client::Client(const int& s) {
+    this->cntr_pings = LONG_PING;
     this->socket = s;
     this->id_room = 0;
     this->state = New;
@@ -39,17 +40,22 @@ Client::Client(const int& s) {
 // ---------- PUBLIC METHODS
 
 
+void Client::decreaseInaccessCount() {
+    this->cntr_pings -= 1;
+}
 
+void Client::resetInaccessCount() {
+    this->cntr_pings = LONG_PING;
+}
 
 
 // ----- SETTERS
 
 void Client::setState(State s) {
+    if (!(this->state == Pinged || this->state == Lost || this->state == Disconnected)) {
+        this->stateLast = this->state;
+    }
     this->state = s;
-}
-
-void Client::setStateLast(State s) {
-    this->stateLast = s;
 }
 
 void Client::setNick(const std::string& n) {
@@ -58,11 +64,11 @@ void Client::setNick(const std::string& n) {
 
 // ----- GETTERS
 
-int Client::getSocket() const {
+const int& Client::getSocket() const {
     return this->socket;
 }
 
-int Client::getIdRoom() const {
+const int& Client::getIdRoom() const {
     return this->id_room;
 }
 
@@ -76,6 +82,10 @@ State Client::getState() const {
 
 State Client::getStateLast() const {
     return this->stateLast;
+}
+
+const int& Client::getInaccessCount() const {
+    return this->cntr_pings;
 }
 
 // ----- PRINTERS
@@ -101,6 +111,9 @@ std::string Client::toStringState() const {
             break;
         case Lost:
             state_str = "lost";
+            break;
+        case Disconnected:
+            state_str = "disconnected";
             break;
         default:
             // never should get here

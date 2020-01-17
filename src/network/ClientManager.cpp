@@ -37,56 +37,52 @@ ClientManager::ClientManager() {
  * 	or when invalid move for game is received.
  *
  */
-int ClientManager::processRequest(Client& client, request& rqst) {
+int ClientManager::routeRequest(Client& client, request& rqst) {
     int processed = 0;
-    std::string key, value;
-
-    int sock = client.getSocket();
-    State state = client.getState();
+    State state;
+    std::string key;
 
     // loop over every data in queue
     while (!rqst.empty()) {
+        // get current state of client
         state = client.getState();
-
-        // get first in queue
+        // get first element in queue
         key = rqst.front();
 
-        logger->debug("Processing KEY [%s] of client on socket [%d] with state [%s].",
-                        key.c_str(), sock, client.toStringState().c_str());
+        logger->debug("KEY [%s] socket [%d] nick [%s] state [%s].", key.c_str(), client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
 
         // connection request
-        if (key == Protocol::CC_CONN && state == New) {
+        if (key == Protocol::CC_CONN) {
             // key is ok
             rqst.pop();
-            // take its value
-            value = rqst.front();
 
-            logger->debug("Processing VALUE [%s] of client on socket [%d] with state [%s].",
-                            value.c_str(), sock, client.toStringState().c_str());
-
-            client.setNick(value);
-            client.setState(Waiting);
-            // TODO move client to Lobby
-        }
-        // reconnection request
-        else if (key == Protocol::CC_RECN && (state == Lost || state == Pinged)) {
-            // TODO reconnect
+            processed = this->requestConnect(client, state, rqst.front());
         }
         // move in game request
         else if (key == Protocol::CC_MOVE && state == PlayingTurn) {
-            // TODO move in client's GameHnefatafl -> swap states of players (if both Playing*)
+            // key is ok
+            rqst.pop();
+
+            processed = this->requestMove(client, state, rqst.front());
         }
         // leave the game request
         else if (key == Protocol::CC_LEAV && (state == PlayingTurn || state == PlayingStandby)) {
-            // TODO notify oppoent about client Leaving, move opponent to Lobby, and quit their game
+            processed = this->requestLeave(client, state);
         }
         // ping enquiry
-        else if (key == Protocol::OP_PING && state != Lost) {
-            this->sendToClient(client, Protocol::OP_PONG);
+        else if (key == Protocol::OP_PING) {
+            processed = this->requestPing(client, state);
         }
-        // pong acknowledge
-        else if (key == Protocol::OP_PONG && state == Pinged) {
-            client.setState(client.getStateLast());
+        // pong acknowledge (pong may still come after short inaccessibility)
+        else if (key == Protocol::OP_PONG) {
+            processed = this->requestPong(client);
+        }
+        // chat message
+        else if (key == Protocol::OP_CHAT && (state == PlayingTurn || state == PlayingStandby)) {
+            // key is ok
+            rqst.pop();
+
+            processed = this->requestChat(client, rqst.front());
         }
         // violation of server logic leads to disconnection of client
         else {
@@ -99,6 +95,121 @@ int ClientManager::processRequest(Client& client, request& rqst) {
     }
 
     return processed;
+}
+
+
+/******************************************************************************
+ *
+ *  If there does not exist any client in vector and current state of client
+ *  is either New or Pinged or Lost or Disconnected, then the method sets new nick
+ *  and state Waiting to new client. If state is neither of these, client is hacking server
+ *  and -1 is returned.
+ *  If there exists some client in vector and current socket is same, like the one of client in vector,
+ *  and state is either Pinged or Lost or Disconnected, it means, that the client is reconnecting
+ *  and state is set accordingly. If state is neither of these, client is hacking.
+ *  After success 0 is returned, else -1.
+ *
+ */
+int ClientManager::requestConnect(Client& client, State state, const std::string& nick) {
+    logger->debug("REQUEST connect VALUE [%s] socket [%d] nick [%s] state [%s].", nick.c_str(), client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
+
+    int rv = 0;
+
+    auto itr_end = this->clients.end();
+    auto client_other = this->findClientByNick(nick);
+
+    // no client with this nick exists
+    if (client_other == itr_end) {
+        // new client without name
+        // client.getStateLast() == New reason:
+        //  clients with name already are not able to rename themselves
+        // state == Pinged reason:
+        //  it is possible that connection request will come after creating client and just before
+        //  receiving pong request, because time between select and Server::updateClient() is not mutexed..
+        // state == Lost, Disconnected reason: (hidden reconnection)
+        //  nick, which client chose could be used.. client stays connected for how long it is necessary,
+        //  in order to choose different nick and without internet it might lead to being Lost or even Disconnected
+        if (client.getStateLast() == New && (state == New || state == Pinged || state == Lost || state == Disconnected)) {
+            client.setNick(nick);
+            client.setState(Waiting);
+            // TODO move client to Lobby
+        }
+        else {
+            rv = -1;
+        }
+    }
+    // some client already has this nick
+    else {
+        // client, who is this request being processed for, is the same client, that has this name -- reconnect request
+        if (client_other->getSocket() == client.getSocket()) {
+            if (state == New || state == Pinged || state == Lost || state == Disconnected) {
+                client.setState(client.getStateLast());
+                client.resetInaccessCount();
+                // TODO full reconnect
+            }
+            // this is rare situation, but still possible
+            else {
+                logger->info("Client [%s] on socket [%d] with state [%s] probably lost connection "
+                             "and tried to reconnect, but was already connected. No problem.",
+                             client.toStringState().c_str(), client.getSocket(), client.getState());
+            }
+        }
+        // client chose same nick, like client on different socket -- name already used
+        else {
+            this->sendToClient(client, Protocol::SC_NICK_USED);
+        }
+    }
+
+    return rv;
+}
+
+
+
+int ClientManager::requestMove(Client& client, State state, const std::string& position) {
+    logger->debug("REQUEST move VALUE [%s] socket [%d] nick [%s] state [%s].", position.c_str(), client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
+
+    int rv = 0;
+
+    // TODO move in client's GameHnefatafl -> swap states of players (if both Playing*)
+
+    return rv;
+}
+
+
+int ClientManager::requestLeave(Client& client, State state) {
+    int rv = 0;
+
+    // TODO notify oppoent about client Leaving, move opponent to Lobby, and quit their game
+
+    return rv;
+}
+
+
+int ClientManager::requestPing(Client& client, State state) {
+    logger->debug("REQUEST ping socket [%d] nick [%s] state [%s].", client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
+
+    if (state == Pinged || state == Lost) {
+        client.setState(client.getStateLast());
+    }
+    this->sendToClient(client, Protocol::OP_PONG);
+
+    return 0;
+}
+
+
+int ClientManager::requestPong(Client& client) {
+    client.setState(client.getStateLast());
+
+    return 0;
+}
+
+
+int ClientManager::requestChat(Client& client, const std::string& message) {
+    logger->debug("REQUEST chat VALUE [%s] socket [%d] nick [%s] state [%s].", message.c_str(), client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
+
+    // TODO reply to opponent
+
+    return 0;
 }
 
 
@@ -139,7 +250,7 @@ int ClientManager::process(Client& client, clientData& data) {
         data.pop();
 
         // finally process client's request
-        if (this->processRequest(client, rqst) != 0) {
+        if (this->routeRequest(client, rqst) != 0) {
             // if request couldn't be processed, stop and set return value to -1 (failure)
             // eg. if client sent message in valid format, but it is not valid in terms
             // of server logic or game logic (sbdy is h4ck1ng w/ t3ln3t..)
@@ -152,13 +263,6 @@ int ClientManager::process(Client& client, clientData& data) {
 }
 
 
-/******************************************************************************
- *
- *  Creates client in vector of clients.
- *  note: This method MUST be called only from Server::acceptConnection() in sake of consistency!
- *  Because Server would then access socket, which is not opened, when created elsewhere.
- *
- */
 void ClientManager::createClient(const int& socket) {
     this->cli_connected += 1;
 
@@ -166,26 +270,41 @@ void ClientManager::createClient(const int& socket) {
 }
 
 
-/******************************************************************************
- *
- *  Erases client from vector of clients.
- *  note: This method MUST be called only from Server::closeConnection() in sake of consistency!
- *  Because Server also has to clear file descriptor of client's socket.
- *
- */
 clientsIterator ClientManager::eraseClient(clientsIterator& client) {
-    this->cli_disconnected += 1;
-
-    // TODO if client's state is Playing* or stateLast was Playing*,
-    //  notify opponent about Disconnetion, move opponent to Lobby, and quit game
-
     return this->clients.erase(client);
+}
+
+
+void ClientManager::eraseLongestDisconnectedClient() {
+    // TODO longterm: how to write this with <algorithm>
+
+    auto longestDiscCli = this->clients.end();
+
+    // find first disconnected client
+    for (auto cli = this->clients.begin(); cli != this->clients.end(); ++cli) {
+        if (cli->getState() == Disconnected) {
+            longestDiscCli = cli;
+            break;
+        }
+    }
+
+    // check other clients, if they are disconnected for longer time
+    for (auto cli = longestDiscCli + 1; cli != clients.end(); ++cli) {
+        if (cli->getState() == Disconnected && cli->getInaccessCount() < longestDiscCli->getInaccessCount()) {
+            longestDiscCli = cli;
+        }
+    }
+
+    // always should be true, because it is used after isDisconnectedClient()
+    if (longestDiscCli != this->clients.end()) {
+        this->clients.erase(longestDiscCli);
+    }
 }
 
 
 /******************************************************************************
  *
- * 	On success returns count of sent bytes, on failure returns -1.
+ * 	On successful send of message returns count of sent bytes, on failure returns -1.
  *
  */
 int ClientManager::sendToClient(Client& client, const std::string& _msg) {
@@ -233,20 +352,6 @@ int ClientManager::sendToClient(Client& client, const std::string& _msg) {
 }
 
 
-clientsIterator ClientManager::findClientBySocket(const int socket) {
-    auto wanted = this->clients.end();
-
-    for (auto cli = clients.begin(); cli != clients.end(); ++cli) {
-        if (cli->getSocket() == socket) {
-            wanted = cli;
-            break;
-        }
-    }
-
-    return wanted;
-}
-
-
 clientsIterator ClientManager::findClientByNick(const std::string& nick) {
     auto wanted = this->clients.end();
 
@@ -261,6 +366,34 @@ clientsIterator ClientManager::findClientByNick(const std::string& nick) {
 }
 
 
+bool ClientManager::isDisconnectedClient() {
+    bool isDiscCli = false;
+
+    for (auto & client : this->clients) {
+        if (client.getState() == Disconnected) {
+            isDiscCli = true;
+            break;
+        }
+    }
+
+    return isDiscCli;
+}
+
+
+bool ClientManager::isClientWithSocket(const int& sock) {
+    bool isCliWSock = false;
+
+    for (auto & client : this->clients) {
+        if (client.getSocket() == sock) {
+            isCliWSock = true;
+            break;
+        }
+    }
+
+    return isCliWSock;
+}
+
+
 // ----- GETTERS
 
 
@@ -268,19 +401,19 @@ int ClientManager::getCountClients() const {
     return this->clients.size();
 }
 
-int& ClientManager::getCountConnected() {
+const int& ClientManager::getCountConnected() const {
     return this->cli_connected;
 }
 
-int& ClientManager::getCountDisconnected() {
+const int& ClientManager::getCountDisconnected() const {
     return this->cli_disconnected;
 }
 
-int& ClientManager::getCountReconnected() {
+const int& ClientManager::getCountReconnected() const {
     return this->cli_reconnected;
 }
 
-int& ClientManager::getBytesSend() {
+const int& ClientManager::getBytesSend() const {
     return this->bytesSend;
 }
 
@@ -296,6 +429,14 @@ std::vector<Client>& ClientManager::getVectorOfClients() {
 
 // ----- PRINTERS
 
+
+void ClientManager::setClientState(clientsIterator& client) {
+    this->cli_disconnected += 1;
+    client->setState(Disconnected);
+}
+
+
+// ----- PRINTERS
 
 void ClientManager::prAllClients() const {
     logger->debug("--- Printing all clients. ---");

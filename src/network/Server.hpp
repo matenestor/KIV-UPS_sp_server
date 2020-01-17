@@ -24,7 +24,7 @@ private:
     /** Longest valid message server may accept (chat). */
     constexpr static const int LONGEST_MSG = 106;
     /** Ping messages period in milliseconds. */
-    constexpr static const int PING_PERIOD = 5000;
+    constexpr static const int PING_PERIOD = 30000;
 
     /** Manages connected clients. */
     ClientManager mngClient;
@@ -68,7 +68,8 @@ private:
 	/** Refuse connection, when server is full. */
 	void refuseConnection();
 	/** Close client's connection. */
-    clientsIterator closeConnection(clientsIterator&, const char*);
+//    clientsIterator closeConnection(clientsIterator&, const char*);
+    void closeConnection(clientsIterator&, const char*);
 
 	/** Receive message from client. */
 	int readClient(const int&);

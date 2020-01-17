@@ -16,7 +16,7 @@ namespace Protocol {
     // examples of protocol message
 
     // C -> S
-    // {c,n:nick}
+    // {c:nick}
     // {m:07050710}
 
     // S -> C
@@ -33,9 +33,11 @@ namespace Protocol {
     static const std::string OP_PING    (">"); // enquiry
     static const std::string OP_PONG    ("<"); // acknowledge
 
+    // chat code
+    static const std::string OP_CHAT    ("ch"); // chat
+
     // client codes
     static const std::string CC_CONN    ("c"); // connect
-    static const std::string CC_RECN    ("r"); // reconnect
     static const std::string CC_MOVE    ("m"); // move
     static const std::string CC_LEAV    ("l"); // leave game
 
@@ -57,19 +59,15 @@ namespace Protocol {
     static const std::string SC_OPN_EXIT     ("oe"); // opponent disconnected
     static const std::string SC_OPN_RECN     ("or"); // opponent reconnected
     static const std::string SC_MANY_CLNT    ("t");  // too many clients message
-    static const std::string SC_NAME_USED    ("u");  // name is already used
+    static const std::string SC_NICK_USED    ("u");  // nick is already used
     static const std::string SC_KICK         ("k");  // kick client
     static const std::string SC_SHDW         ("s");  // server shutdown
 
-    // chat code
-    static const std::string OP_CHAT         ("ch"); // chat
+    // server regex -- valid format:            (?:\{(?:<|>|c:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})\})+
+    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})\})+)");
 
-
-    // server regex -- valid format:            (?:\{(?:<|>|c:\w{3,20}|r:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})\})+
-    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|r:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})\})+)");
-
-    // server regex -- valid data:      <|>|c:\w{3,20}|r:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100}    ..in curly brackets
-    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|r:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})");
+    // server regex -- valid data:      <|>|c:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100}    ..in curly brackets
+    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|m:\d{8}|l|ch:[\w\s.!?]{1,100})");
 
     // server regex -- valid keys and values in subdata: [^:]+
     static const std::regex rgx_key_value(R"([^:]+)");

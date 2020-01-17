@@ -2,7 +2,6 @@
 #define CLIENTMANAGER_HPP
 
 #include "../game/Lobby.hpp"
-#include "../game/GameRoom.hpp"
 
 #include "Client.hpp"
 #include "protocol.hpp"
@@ -16,10 +15,8 @@ private:
     /** Vector of clients. */
     std::vector<Client> clients;
 
-    /** Lobby takes care of waiting clients. */
+    /** Lobby takes care of client's sessions. */
     Lobby lobby;
-    /** GameRoom takes care of playing clients. */
-    GameRoom gameRoom;
 
     // connected, disconnected and reconnected clients
     int cli_connected;
@@ -29,8 +26,16 @@ private:
     /** Total sent bytes. ClientManager is only sending. */
     int bytesSend;
 
-    /** Process parsed client's request. */
-    int processRequest(Client&, request&);
+    /** Route parsed client's request. */
+    int routeRequest(Client&, request&);
+
+    // requests
+    int requestConnect(Client&, State, const std::string&);
+    int requestMove(Client&, State, const std::string&);
+    int requestLeave(Client&, State);
+    int requestPing(Client&, State);
+    int requestPong(Client&);
+    int requestChat(Client&, const std::string&);
 
 public:
 
@@ -42,24 +47,32 @@ public:
     void createClient(const int&);
     /** Erase client from vector. */
     clientsIterator eraseClient(clientsIterator& client);
+    /** Erase longest disconnected client from vector. */
+    void eraseLongestDisconnectedClient();
 
     /** Send message to client. */
     int sendToClient(Client&, const std::string&);
 
-    /** Find connected client in private vector by socket. */
-    clientsIterator findClientBySocket(int);
     /** Find connected client in private vector by nick. */
     clientsIterator findClientByNick(const std::string&);
 
+    /** Finds out, if there are some disconnected clients in vector. */
+    bool isDisconnectedClient();
+    /** Finds out, if there are some clients with given socket. */
+    bool isClientWithSocket(const int&);
+
     // getters
     [[nodiscard]] int getCountClients() const;
-    int& getCountConnected();
-    int& getCountDisconnected();
-    int& getCountReconnected();
-    int& getBytesSend();
+    [[nodiscard]] const int& getCountConnected() const;
+    [[nodiscard]] const int& getCountDisconnected() const;
+    [[nodiscard]] const int& getCountReconnected() const;
+    [[nodiscard]] const int& getBytesSend() const;
 
     /** Access to private vector of clients. */
     std::vector<Client>& getVectorOfClients();
+
+    // setters
+    void setClientState(clientsIterator&);
 
     // printers
     void prAllClients() const;

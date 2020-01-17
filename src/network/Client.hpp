@@ -10,12 +10,18 @@ enum State {
     PlayingTurn,
     PlayingStandby,
     Pinged,
-    Lost
+    Lost,
+    Disconnected
 };
 
 
 class Client {
 private:
+    /** Count of pings during long inaccessibility -- duration. */
+    constexpr static const int LONG_PING = 5;
+
+    /** Counter of long inaccessibility pings. */
+    int cntr_pings;
     /** Socket client is connected to. */
     int socket;
     /** Room where player is located. (0 == lobby) */
@@ -30,17 +36,22 @@ private:
 public:
     Client(const int&);
 
+    /** Decreases counter during long inaccessibility. */
+    void decreaseInaccessCount();
+    /** Resets counter of long inaccessibility */
+    void resetInaccessCount();
+
     // setters
     void setNick(const std::string&);
     void setState(State s);
-    void setStateLast(State s);
 
     // getters
-    [[nodiscard]] int getSocket() const;
-    [[nodiscard]] int getIdRoom() const;
+    [[nodiscard]] const int& getSocket() const;
+    [[nodiscard]] const int& getIdRoom() const;
     [[nodiscard]] const std::string& getNick() const;
     [[nodiscard]] State getState() const;
     [[nodiscard]] State getStateLast() const;
+    [[nodiscard]] const int& getInaccessCount() const;
 
     // printers
     [[nodiscard]] std::string toStringState() const;

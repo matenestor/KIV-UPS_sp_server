@@ -23,7 +23,6 @@ add_executable(KIV_UPS_sp_server
         src/network/Client.cpp src/network/Client.hpp
 
         src/game/Lobby.cpp src/game/Lobby.hpp
-        src/game/GameRoom.cpp src/game/GameRoom.hpp
         src/game/RoomHnefatafl.cpp src/game/RoomHnefatafl.hpp
         )
 
