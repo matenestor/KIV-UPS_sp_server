@@ -216,7 +216,7 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
     }
 
     // check clients, who are Waiting for a game
-    this->mngClient.sendWaitingClientsToPlay();
+    this->mngClient.moveWaitingClientsToPlay();
 }
 
 
@@ -278,8 +278,13 @@ void Server::closeConnection(clientsIterator& client, const char* reason) {
     close(client->getSocket());
 
     this->mngClient.setDisconnected(client);
+    State stateLast = client->getStateLast();
 
     // TODO if state Pleying* notify opponent
+    // if stateLast was Playing*, send massage to opponent about Lost
+    if (stateLast == PlayingOnTurn || stateLast == PlayingOnStand) {
+        this->mngClient.sendToOpponentOf(*client, Protocol::SC_OPN_DISC);
+    }
 
     logger->info("Client [%s] on socket [%d] closed [%s], [%s]", client->getNick().c_str(), client->getSocket(), reason, std::strerror(errno));
 }
@@ -379,6 +384,9 @@ void Server::pingClients() {
     while (isRunning) {
         std::unique_lock<std::mutex> lock(mtx);
 
+        State state, stateLast;
+
+        // print statistics about clients
         this->mngClient.prAllClients();
 
         // ping all clients and disconnect those, who can't answer immediately
@@ -388,24 +396,34 @@ void Server::pingClients() {
 
             logger->debug("PING: socket [%d] nick [%s] state [%s].", client->getSocket(), client->getNick().c_str(), client->toStringState().c_str());
 
+            state = client->getState();
+
             // if client was already pinged and did not respond with pong since, mark one as Lost
-            if (client->getState() == Pinged) {
+            if (state == Pinged) {
                 this->mngClient.sendToClient(*client, Protocol::OP_PING);
                 client->setState(Lost);
 
-                // TODO if stateLast was Playing*, send massage to opponent about Lost
+                stateLast = client->getStateLast();
+
+                // if stateLast was Playing*, send massage to opponent about Lost
+                if (stateLast == PlayingOnTurn || stateLast == PlayingOnStand) {
+                    this->mngClient.sendToOpponentOf(*client, Protocol::SC_OPN_LOST);
+                }
+
                 logger->debug("Socket [%d] nick [%s] state [%s] is alredy Pinged -> Lost.", client->getSocket(), client->getNick().c_str(), client->toStringState().c_str());
             }
+
             // if client was Lost and did not respond since with reconnect request,
             // client is considered as "not responding"
-            else if (client->getState() == Lost) {
+            else if (state == Lost) {
                 this->mngClient.sendToClient(*client, Protocol::SC_KICK);
                 this->closeConnection(client, "not responding");
 
                 logger->debug("Socket [%d] nick [%s] state [%s] is lost.", client->getSocket(), client->getNick().c_str(), client->toStringState().c_str());
             }
+
             // long inaccessibility
-            else if (client->getState() == Disconnected) {
+            else if (state == Disconnected) {
                 // decrease inaccessibility counter during each ping
                 client->decreaseInaccessCount();
 
@@ -417,6 +435,7 @@ void Server::pingClients() {
 
                 logger->debug("Socket [%d] nick [%s] state [%s] is being decreased [%d].", client->getSocket(), client->getNick().c_str(), client->toStringState().c_str(), client->getInaccessCount());
             }
+
             // send ping message to client
             else {
                 this->mngClient.sendToClient(*client, Protocol::OP_PING);

@@ -56,7 +56,8 @@ namespace Protocol {
     static const std::string SC_OPN_NAME     ("on"); // opponent's name
     static const std::string SC_OPN_MOVE     ("om"); // opponent's move
     static const std::string SC_OPN_LEAVE    ("ol"); // opponent left the game
-    static const std::string SC_OPN_EXIT     ("oe"); // opponent disconnected
+    static const std::string SC_OPN_LOST     ("os"); // opponent lost
+    static const std::string SC_OPN_DISC     ("oe"); // opponent disconnected
     static const std::string SC_OPN_RECN     ("or"); // opponent reconnected
     static const std::string SC_MANY_CLNT    ("t");  // too many clients message
     static const std::string SC_NICK_USED    ("u");  // nick is already used

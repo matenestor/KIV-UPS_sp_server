@@ -59,6 +59,8 @@ public:
 
     /** Send message to client. */
     int sendToClient(Client&, const std::string&);
+    /** Send message to client's opponent, when in game. */
+    void sendToOpponentOf(const Client&, const std::string&);
 
     /** Find connected client in private vector by nick. */
     clientsIterator findClientByNick(const std::string&);
@@ -69,7 +71,7 @@ public:
     bool isClientWithSocket(const int&);
 
     /** Checks Waiting clients and tells Lobby to send them to game. */
-    void sendWaitingClientsToPlay();
+    void moveWaitingClientsToPlay();
 
     // getters
     [[nodiscard]] int getCountClients() const;

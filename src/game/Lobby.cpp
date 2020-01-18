@@ -87,4 +87,10 @@ Client* Lobby::getPlayerOnStand(const int& id) {
     return this->getRoomById(id)->getPlayerOnStand();
 }
 
+Client* Lobby::getOponnentOf(const Client& client) {
+    // get room where client is
+    auto room = this->getRoomById(client.getRoomId());
 
+    // get other client in room as opponent
+    return client == *room->getPlayerOnTurn() ? room->getPlayerOnStand() : room->getPlayerOnTurn();
+}

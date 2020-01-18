@@ -419,6 +419,11 @@ int ClientManager::sendToClient(Client& client, const std::string& _msg) {
 }
 
 
+void ClientManager::sendToOpponentOf(const Client& client, const std::string& msg) {
+    this->sendToClient(*this->lobby.getOponnentOf(client), msg);
+}
+
+
 clientsIterator ClientManager::findClientByNick(const std::string& nick) {
     auto wanted = this->clients.end();
 
@@ -466,7 +471,7 @@ bool ClientManager::isClientWithSocket(const int& sock) {
  * 	Finds every two Waiting clients and sends them to play a game in time O(n).
  *
  */
-void ClientManager::sendWaitingClientsToPlay() {
+void ClientManager::moveWaitingClientsToPlay() {
     for (auto cli1 = this->clients.begin(); cli1 != this->clients.end(); ++cli1) {
         // first Waiting client found
         if (cli1->getState() == Waiting) {
@@ -546,4 +551,3 @@ void ClientManager::prAllClients() const {
 
     logger->debug("--- Printing all clients. --- DONE");
 }
-

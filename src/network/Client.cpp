@@ -35,6 +35,10 @@ Client::Client(const int& s) {
 // ---------- PUBLIC METHODS
 
 
+bool operator==(const Client& cli1, const Client& cli2) {
+    return cli1.getSocket() == cli2.getSocket();
+}
+
 void Client::decreaseInaccessCount() {
     this->cntrPings -= 1;
 }

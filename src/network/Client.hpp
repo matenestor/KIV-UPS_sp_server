@@ -34,7 +34,11 @@ private:
     State stateLast;
 
 public:
+
     Client(const int&);
+
+    /** Compare if two clients are same */
+    friend bool operator==(const Client&, const Client&);
 
     /** Decreases counter during long inaccessibility. */
     void decreaseInaccessCount();

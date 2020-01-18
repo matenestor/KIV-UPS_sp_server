@@ -32,6 +32,8 @@ public:
     /** Send coordinated to room with given id. */
     bool moveInRoom(const int&, const std::string&);
 
+    [[nodiscard]] Client* getOponnentOf(const Client&);
+
     // getters
     [[nodiscard]] const int& getRoomsTotal() const;
     [[nodiscard]] const GameState& getRoomStatus(const int&);
