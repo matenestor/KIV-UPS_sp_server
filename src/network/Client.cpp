@@ -9,15 +9,10 @@
 
 
 
-/******************************************************************************
- *
- *
- *
- */
 Client::Client(const int& s) {
-    this->cntr_pings = LONG_PING;
+    this->cntrPings = LONG_PING;
     this->socket = s;
-    this->id_room = 0;
+    this->roomId = 0;
     this->state = New;
     this->stateLast = New;
 }
@@ -41,15 +36,19 @@ Client::Client(const int& s) {
 
 
 void Client::decreaseInaccessCount() {
-    this->cntr_pings -= 1;
+    this->cntrPings -= 1;
 }
 
 void Client::resetInaccessCount() {
-    this->cntr_pings = LONG_PING;
+    this->cntrPings = LONG_PING;
 }
 
 
 // ----- SETTERS
+
+void Client::setRoomId(const int& id) {
+    this->roomId = id;
+}
 
 void Client::setState(State s) {
     if (!(this->state == Pinged || this->state == Lost || this->state == Disconnected)) {
@@ -68,8 +67,8 @@ const int& Client::getSocket() const {
     return this->socket;
 }
 
-const int& Client::getIdRoom() const {
-    return this->id_room;
+const int& Client::getRoomId() const {
+    return this->roomId;
 }
 
 const std::string& Client::getNick() const {
@@ -85,7 +84,7 @@ State Client::getStateLast() const {
 }
 
 const int& Client::getInaccessCount() const {
-    return this->cntr_pings;
+    return this->cntrPings;
 }
 
 // ----- PRINTERS
@@ -100,11 +99,11 @@ std::string Client::toStringState() const {
         case Waiting:
             state_str = "waiting";
             break;
-        case PlayingTurn:
-            state_str = "playing, on turn";
+        case PlayingOnTurn:
+            state_str = "playing -- on turn";
             break;
-        case PlayingStandby:
-            state_str = "playing, standby";
+        case PlayingOnStand:
+            state_str = "playing -- on stand";
             break;
         case Pinged:
             state_str = "pinged";
@@ -129,7 +128,7 @@ std::string Client::toString() const {
     out << "socket ["     << this->socket
         << "], nick ["    << this->nick
         << "], state ["   << this->toStringState()
-        << "], id_room [" << this->id_room
+        << "], roomId [" << this->roomId
         << "]";
 
     return out.str();

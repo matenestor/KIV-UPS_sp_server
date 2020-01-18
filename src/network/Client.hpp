@@ -7,8 +7,8 @@
 enum State {
     New,
     Waiting,
-    PlayingTurn,
-    PlayingStandby,
+    PlayingOnTurn,
+    PlayingOnStand,
     Pinged,
     Lost,
     Disconnected
@@ -21,11 +21,11 @@ private:
     constexpr static const int LONG_PING = 5;
 
     /** Counter of long inaccessibility pings. */
-    int cntr_pings;
+    int cntrPings;
     /** Socket client is connected to. */
     int socket;
     /** Room where player is located. (0 == lobby) */
-    int id_room;
+    int roomId;
     /** Player"s nick sent by the player. */
     std::string nick;
     /** Player's state during connection. */
@@ -42,12 +42,13 @@ public:
     void resetInaccessCount();
 
     // setters
+    void setRoomId(const int&);
     void setNick(const std::string&);
     void setState(State s);
 
     // getters
     [[nodiscard]] const int& getSocket() const;
-    [[nodiscard]] const int& getIdRoom() const;
+    [[nodiscard]] const int& getRoomId() const;
     [[nodiscard]] const std::string& getNick() const;
     [[nodiscard]] State getState() const;
     [[nodiscard]] State getStateLast() const;

@@ -214,6 +214,9 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
             }
         }
     }
+
+    // check clients, who are Waiting for a game
+    this->mngClient.sendWaitingClientsToPlay();
 }
 
 
@@ -274,7 +277,9 @@ void Server::closeConnection(clientsIterator& client, const char* reason) {
     // close socket
     close(client->getSocket());
 
-    this->mngClient.setClientState(client);
+    this->mngClient.setDisconnected(client);
+
+    // TODO if state Pleying* notify opponent
 
     logger->info("Client [%s] on socket [%d] closed [%s], [%s]", client->getNick().c_str(), client->getSocket(), reason, std::strerror(errno));
 }
@@ -396,7 +401,6 @@ void Server::pingClients() {
             else if (client->getState() == Lost) {
                 this->mngClient.sendToClient(*client, Protocol::SC_KICK);
                 this->closeConnection(client, "not responding");
-                client->setState(Disconnected);
 
                 logger->debug("Socket [%d] nick [%s] state [%s] is lost.", client->getSocket(), client->getNick().c_str(), client->toStringState().c_str());
             }
@@ -568,6 +572,7 @@ void Server::prStats() {
     logger->info("Clients connected: %d",    this->mngClient.getCountConnected());
     logger->info("Clients disconnected: %d", this->mngClient.getCountDisconnected());
     logger->info("Clients reconnected: %d",  this->mngClient.getCountReconnected());
+    logger->info("Game rooms created: %d",   this->mngClient.getRoomsTotal());
     logger->info("Bytes received: %d",       this->bytesRecv);
     logger->info("Bytes sent: %d",           this->mngClient.getBytesSend());
     logger->info("--- Printing statistics --- DONE");

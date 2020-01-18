@@ -68,7 +68,6 @@ private:
 	/** Refuse connection, when server is full. */
 	void refuseConnection();
 	/** Close client's connection. */
-//    clientsIterator closeConnection(clientsIterator&, const char*);
     void closeConnection(clientsIterator&, const char*);
 
 	/** Receive message from client. */

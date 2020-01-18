@@ -59,15 +59,15 @@ int ClientManager::routeRequest(Client& client, request& rqst) {
             processed = this->requestConnect(client, state, rqst.front());
         }
         // move in game request
-        else if (key == Protocol::CC_MOVE && state == PlayingTurn) {
+        else if (key == Protocol::CC_MOVE && (state == PlayingOnTurn || state == Pinged)) {
             // key is ok
             rqst.pop();
 
-            processed = this->requestMove(client, state, rqst.front());
+            processed = this->requestMove(client, rqst.front());
         }
         // leave the game request
-        else if (key == Protocol::CC_LEAV && (state == PlayingTurn || state == PlayingStandby)) {
-            processed = this->requestLeave(client, state);
+        else if (key == Protocol::CC_LEAV && (state == PlayingOnTurn || state == PlayingOnStand || state == Pinged)) {
+            processed = this->requestLeave(client);
         }
         // ping enquiry
         else if (key == Protocol::OP_PING) {
@@ -78,7 +78,7 @@ int ClientManager::routeRequest(Client& client, request& rqst) {
             processed = this->requestPong(client);
         }
         // chat message
-        else if (key == Protocol::OP_CHAT && (state == PlayingTurn || state == PlayingStandby)) {
+        else if (key == Protocol::OP_CHAT && (state == PlayingOnTurn || state == PlayingOnStand || state == Pinged)) {
             // key is ok
             rqst.pop();
 
@@ -132,7 +132,8 @@ int ClientManager::requestConnect(Client& client, State state, const std::string
         if (client.getStateLast() == New && (state == New || state == Pinged || state == Lost || state == Disconnected)) {
             client.setNick(nick);
             client.setState(Waiting);
-            // TODO move client to Lobby
+            this->sendToClient(client, Protocol::SC_RESP_CONN);
+            this->sendToClient(client, Protocol::SC_IN_LOBBY);
         }
         else {
             rv = -1;
@@ -145,6 +146,19 @@ int ClientManager::requestConnect(Client& client, State state, const std::string
             if (state == New || state == Pinged || state == Lost || state == Disconnected) {
                 client.setState(client.getStateLast());
                 client.resetInaccessCount();
+
+                if (client.getState() == Waiting) {
+                    this->sendToClient(client, Protocol::SC_RESP_RECN + Protocol::OP_SEP + Protocol::SC_IN_LOBBY);
+                }
+                else if (client.getState() == PlayingOnTurn || client.getState() == PlayingOnStand) {
+                    // TODO send reconnect message
+//                    this->sendToClient(client, Protocol::SC_RESP_RECN + Protocol::OP_SEP
+//                                               + Protocol::SC_IN_GAME + Protocol::OP_SEP
+//                                               + (client.getState() == PlayingOnTurn ? Protocol::SC_TURN_YOU : Protocol::SC_TURN_OPN) + Protocol::OP_SEP
+//                                               + Protocol::SC_OPN_NAME + Protocol::OP_INI + *this->lobby.getRoomById(client.getRoomId()).
+//                    );
+                }
+
                 // TODO full reconnect
             }
             // this is rare situation, but still possible
@@ -165,18 +179,48 @@ int ClientManager::requestConnect(Client& client, State state, const std::string
 
 
 
-int ClientManager::requestMove(Client& client, State state, const std::string& position) {
-    logger->debug("REQUEST move VALUE [%s] socket [%d] nick [%s] state [%s].", position.c_str(), client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
+int ClientManager::requestMove(Client& client, const std::string& coordinates) {
+    logger->debug("REQUEST move VALUE [%s] socket [%d] nick [%s] state [%s].", coordinates.c_str(), client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
 
     int rv = 0;
+    int roomId = client.getRoomId();
 
-    // TODO move in client's GameHnefatafl -> swap states of players (if both Playing*)
+    bool moved = this->lobby.moveInRoom(roomId, coordinates);
+
+    if (moved) {
+        auto onTurn = this->lobby.getPlayerOnTurn(roomId);
+        auto onStand = this->lobby.getPlayerOnStand(roomId);
+
+        // after successful move, the opponent on turn
+        this->sendToClient(*onStand, Protocol::SC_MV_VALID);
+        this->sendToClient(*onTurn, Protocol::SC_OPN_MOVE + Protocol::OP_INI + coordinates);
+
+        // when game is over, send clients to lobby and destroy their room
+        if (this->lobby.getRoomStatus(roomId) == Gameover) {
+            // set states of both players to Waiting
+            onTurn->setState(Waiting);
+            onStand->setState(Waiting);
+
+            // set room id to Lobby"
+            onTurn->setRoomId(0);
+            onStand->setRoomId(0);
+
+            // if the game is over, the winner did last move, so looser is now on turn
+            this->sendToClient(*onTurn, Protocol::SC_GO_LOSS);
+            this->sendToClient(*onStand, Protocol::SC_GO_WIN);
+
+            // finally destroy the finished game room
+            this->lobby.destroyRoom(roomId);
+        }
+    }
+
+    rv = moved ? 0 : -1;
 
     return rv;
 }
 
 
-int ClientManager::requestLeave(Client& client, State state) {
+int ClientManager::requestLeave(Client& client) {
     int rv = 0;
 
     // TODO notify oppoent about client Leaving, move opponent to Lobby, and quit their game
@@ -210,6 +254,29 @@ int ClientManager::requestChat(Client& client, const std::string& message) {
     // TODO reply to opponent
 
     return 0;
+}
+
+
+void ClientManager::startGame(Client& cli1, Client& cli2) {
+    // set room Id to clients
+    int newId = this->lobby.getRoomsTotal();
+    cli1.setRoomId(newId);
+    cli2.setRoomId(newId);
+
+    // first client will be black, and black starts the game
+    cli1.setState(PlayingOnTurn);
+    cli2.setState(PlayingOnStand);
+
+    // send message to players, who just started playing
+    this->sendToClient(cli1, this->composeMsgInGame(Protocol::SC_TURN_YOU, cli2.getNick()));
+    this->sendToClient(cli2, this->composeMsgInGame(Protocol::SC_TURN_OPN, cli1.getNick()));
+}
+
+
+std::string ClientManager::composeMsgInGame(const std::string& turn, const std::string& nick) {
+    // eg. {ig,ty,on:nick12}
+    return Protocol::SC_IN_GAME + Protocol::OP_SEP + turn + Protocol::OP_SEP
+         + Protocol::SC_OPN_NAME + Protocol::OP_INI + nick;
 }
 
 
@@ -394,6 +461,34 @@ bool ClientManager::isClientWithSocket(const int& sock) {
 }
 
 
+/******************************************************************************
+ *
+ * 	Finds every two Waiting clients and sends them to play a game in time O(n).
+ *
+ */
+void ClientManager::sendWaitingClientsToPlay() {
+    for (auto cli1 = this->clients.begin(); cli1 != this->clients.end(); ++cli1) {
+        // first Waiting client found
+        if (cli1->getState() == Waiting) {
+
+            for (auto cli2 = cli1 + 1; cli2 != this->clients.end(); ++cli2) {
+                // second Waiting client found
+                if (cli2->getState() == Waiting) {
+                    // create game for them
+                    this->lobby.createRoom(*cli1, *cli2);
+                    // initialize new room
+                    this->startGame(*cli1, *cli2);
+
+                    // continue searching from position next to second client
+                    cli1 = cli2;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
 // ----- GETTERS
 
 
@@ -417,6 +512,10 @@ const int& ClientManager::getBytesSend() const {
     return this->bytesSend;
 }
 
+const int& ClientManager::getRoomsTotal() const {
+    return this->lobby.getRoomsTotal();
+}
+
 /******************************************************************************
  *
  * 	Get access to vector of clients, so Server is able to update them.
@@ -430,7 +529,7 @@ std::vector<Client>& ClientManager::getVectorOfClients() {
 // ----- PRINTERS
 
 
-void ClientManager::setClientState(clientsIterator& client) {
+void ClientManager::setDisconnected(clientsIterator& client) {
     this->cli_disconnected += 1;
     client->setState(Disconnected);
 }
@@ -447,3 +546,4 @@ void ClientManager::prAllClients() const {
 
     logger->debug("--- Printing all clients. --- DONE");
 }
+

@@ -12,11 +12,11 @@ using clientsIterator = std::vector<Client>::iterator;
 class ClientManager {
 private:
 
+    /** Lobby takes care of waiting and playing clients. */
+    Lobby lobby;
+
     /** Vector of clients. */
     std::vector<Client> clients;
-
-    /** Lobby takes care of client's sessions. */
-    Lobby lobby;
 
     // connected, disconnected and reconnected clients
     int cli_connected;
@@ -31,11 +31,18 @@ private:
 
     // requests
     int requestConnect(Client&, State, const std::string&);
-    int requestMove(Client&, State, const std::string&);
-    int requestLeave(Client&, State);
+    int requestMove(Client&, const std::string&);
+    int requestLeave(Client&);
     int requestPing(Client&, State);
     int requestPong(Client&);
     int requestChat(Client&, const std::string&);
+
+    /** Sets Id and State to clients, who starts to play.. */
+    void startGame(Client& cli1, Client& cli2);
+
+    /** Compose message, which is send to client, who just entered a game. */
+    std::string composeMsgInGame(const std::string&, const std::string&);
+    std::string composeMsgRecnRespInGame(); // TODO
 
 public:
 
@@ -61,18 +68,22 @@ public:
     /** Finds out, if there are some clients with given socket. */
     bool isClientWithSocket(const int&);
 
+    /** Checks Waiting clients and tells Lobby to send them to game. */
+    void sendWaitingClientsToPlay();
+
     // getters
     [[nodiscard]] int getCountClients() const;
     [[nodiscard]] const int& getCountConnected() const;
     [[nodiscard]] const int& getCountDisconnected() const;
     [[nodiscard]] const int& getCountReconnected() const;
     [[nodiscard]] const int& getBytesSend() const;
+    [[nodiscard]] const int& getRoomsTotal() const;
 
     /** Access to private vector of clients. */
     std::vector<Client>& getVectorOfClients();
 
     // setters
-    void setClientState(clientsIterator&);
+    void setDisconnected(clientsIterator&);
 
     // printers
     void prAllClients() const;
