@@ -233,17 +233,17 @@ void Server::acceptConnection() {
     socklen_t peer_addr_len{};
 
     // accept new connection
-    client_socket = accept(this->serverSocket, (struct sockaddr *) &peer_addr, &peer_addr_len);
+    client_socket = accept(this->serverSocket, (struct sockaddr*) &peer_addr, &peer_addr_len);
 
     if (client_socket > 0) {
+        // get ip address of client
+        getpeername(client_socket, (struct sockaddr*) &peer_addr, &peer_addr_len);
+
         // set new connection to file descriptor
         FD_SET(client_socket, &(this->sockets));
 
-        // if there are no clients with same socket, add new socket number to vector
-        // (patch for reconnection logic)
-        if (!this->mngClient.isClientWithSocket(client_socket)) {
-            this->mngClient.createClient(client_socket);
-        }
+        // create client instance
+        this->mngClient.createClient(inet_ntoa(peer_addr.sin_addr), client_socket);
 
         logger->info("New connection on socket [%d] established.", client_socket);
     }
@@ -270,7 +270,6 @@ void Server::refuseConnection() {
 }
 
 
-//clientsIterator Server::closeConnection(clientsIterator& client, const char* reason) {
 void Server::closeConnection(clientsIterator& client, const char* reason) {
     // server remove connection
     FD_CLR(client->getSocket(), &(this->sockets));
@@ -280,13 +279,12 @@ void Server::closeConnection(clientsIterator& client, const char* reason) {
     this->mngClient.setDisconnected(client);
     State stateLast = client->getStateLast();
 
-    // TODO if state Pleying* notify opponent
-    // if stateLast was Playing*, send massage to opponent about Lost
+    // if client was playing, send massage to opponent about disconnection
     if (stateLast == PlayingOnTurn || stateLast == PlayingOnStand) {
         this->mngClient.sendToOpponentOf(*client, Protocol::SC_OPN_DISC);
     }
 
-    logger->info("Client [%s] on socket [%d] closed [%s], [%s]", client->getNick().c_str(), client->getSocket(), reason, std::strerror(errno));
+    logger->info("Client [%s] with ip [%s] on socket [%d] closed [%s], [%s]", client->getNick().c_str(), client->getIpAddr().c_str(), client->getSocket(), reason, std::strerror(errno));
 }
 
 
@@ -357,12 +355,12 @@ int Server::serveClient(Client& client) {
     int valid = 0;
     clientData data = clientData();
 
+    // if message had valid format, parse it
     if (isValidFormat(this->buffer) == 0) {
         parseMsg(this->buffer, data);
     }
     else {
         valid = 1;
-
         logger->warning("Server received invalid data from socket [%d].", client.getSocket());
     }
 

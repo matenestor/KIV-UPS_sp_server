@@ -29,8 +29,11 @@ private:
     /** Route parsed client's request. */
     int routeRequest(Client&, request&);
 
+    /** Handle reconnection. */
+    void handleReconnection(Client&, clientsIterator&);
+
     // requests
-    int requestConnect(Client&, State, const std::string&);
+    int requestConnect(Client&, const std::string&, State);
     int requestMove(Client&, const std::string&);
     int requestLeave(Client&);
     int requestPing(Client&, State);
@@ -42,7 +45,10 @@ private:
 
     /** Compose message, which is send to client, who just entered a game. */
     std::string composeMsgInGame(const std::string&, const std::string&);
-    std::string composeMsgRecnRespInGame(); // TODO
+    /** Compose message, which is send to client, who have been reconnected to game. */
+    std::string composeMsgInGameRecn(const Client&);
+    /** Compose message, which is send to client, who have been reconnected to lobby. */
+    std::string composeMsgInLobbyRecn();
 
 public:
 
@@ -51,7 +57,7 @@ public:
     /** Process received message for current client. */
     int process(Client&, clientData&);
     /** Create new client connection. */
-    void createClient(const int&);
+    void createClient(const std::string&, const int&);
     /** Erase client from vector. */
     clientsIterator eraseClient(clientsIterator& client);
     /** Erase longest disconnected client from vector. */
@@ -64,11 +70,11 @@ public:
 
     /** Find connected client in private vector by nick. */
     clientsIterator findClientByNick(const std::string&);
+    /** Find connected client in private vector by ip address. */
+    clientsIterator findClientByIp(const std::string&);
 
     /** Finds out, if there are some disconnected clients in vector. */
     bool isDisconnectedClient();
-    /** Finds out, if there are some clients with given socket. */
-    bool isClientWithSocket(const int&);
 
     /** Checks Waiting clients and tells Lobby to send them to game. */
     void moveWaitingClientsToPlay();

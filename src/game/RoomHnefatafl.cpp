@@ -11,12 +11,34 @@
 RoomHnefatafl::RoomHnefatafl(const int& id, Client& pB, Client& pW) {
     logger->debug("HNEF black [%s] white [%s]", pB.getNick().c_str(), pW.getNick().c_str());
 
+    // init room id and state
     this->roomId = id;
     this->gameState = Playing;
 
-    // black players start the game
+    // black player starts the game
     this->onTurn = &pB;
     this->onStand = &pW;
+
+    // set room Id to clients
+    this->onTurn->setRoomId(this->roomId);
+    this->onStand->setRoomId(this->roomId);
+
+    // first client will be black, and black starts the game
+    this->onTurn->setState(PlayingOnTurn);
+    this->onStand->setState(PlayingOnStand);
+
+    // start structure of playfield
+    this->pf[0]  = {F_Escape, F_Empty, F_Empty, S_Black, S_Black, S_Black, S_Black, S_Black, F_Empty, F_Empty, F_Escape};
+    this->pf[1]  = {F_Empty,  F_Empty, F_Empty, F_Empty, F_Empty, S_Black, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty};
+    this->pf[2]  = {F_Empty,  F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty};
+    this->pf[3]  = {S_Black,  F_Empty, F_Empty, F_Empty, F_Empty, S_White, F_Empty, F_Empty, F_Empty, F_Empty, S_Black};
+    this->pf[4]  = {S_Black,  F_Empty, F_Empty, F_Empty, S_White, S_White, S_White, F_Empty, F_Empty, F_Empty, S_Black};
+    this->pf[5]  = {S_Black,  S_Black, F_Empty, S_White, S_White, S_King,  S_White, S_White, F_Empty, S_Black, S_Black};
+    this->pf[6]  = {S_Black,  F_Empty, F_Empty, F_Empty, S_White, S_White, S_White, F_Empty, F_Empty, F_Empty, S_Black};
+    this->pf[7]  = {S_Black,  F_Empty, F_Empty, F_Empty, F_Empty, S_White, F_Empty, F_Empty, F_Empty, F_Empty, S_Black};
+    this->pf[8]  = {F_Empty,  F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty};
+    this->pf[9]  = {F_Empty,  F_Empty, F_Empty, F_Empty, F_Empty, S_Black, F_Empty, F_Empty, F_Empty, F_Empty, F_Empty};
+    this->pf[10] = {F_Escape, F_Empty, F_Empty, S_Black, S_Black, S_Black, S_Black, S_Black, F_Empty, F_Empty, F_Escape};
 }
 
 
@@ -54,6 +76,16 @@ bool RoomHnefatafl::move(const std::string& coordinates) {
     moved = true;
 
     return moved;
+}
+
+
+void RoomHnefatafl::reassignPlayerOnTurn(Client& client) {
+    this->onTurn = &client;
+}
+
+
+void RoomHnefatafl::reassignPlayerOnStand(Client& client) {
+    this->onStand = &client;
 }
 
 

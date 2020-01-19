@@ -32,13 +32,16 @@ public:
     /** Send coordinated to room with given id. */
     bool moveInRoom(const int&, const std::string&);
 
-    [[nodiscard]] Client* getOponnentOf(const Client&);
+    /** Reassign pointer to client in room -- used in during reconnection of client. */
+    void reassignPlayerPointer(Client&);
 
     // getters
+    [[nodiscard]] Client* getOpponentOf(const Client&);
     [[nodiscard]] const int& getRoomsTotal() const;
     [[nodiscard]] const GameState& getRoomStatus(const int&);
     Client* getPlayerOnTurn(const int&);
     Client* getPlayerOnStand(const int&);
+    std::string getPlayfieldString(const int&);
 
 };
 

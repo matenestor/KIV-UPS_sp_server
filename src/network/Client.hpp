@@ -22,8 +22,12 @@ private:
 
     /** Counter of long inaccessibility pings. */
     int cntrPings;
+
+    /** IP address of client. */
+    std::string ipAddress;
     /** Socket client is connected to. */
-    int socket;
+    int socketNum;
+
     /** Room where player is located. (0 == lobby) */
     int roomId;
     /** Player"s nick sent by the player. */
@@ -35,7 +39,7 @@ private:
 
 public:
 
-    Client(const int&);
+    Client(const std::string&, const int&);
 
     /** Compare if two clients are same */
     friend bool operator==(const Client&, const Client&);
@@ -46,11 +50,13 @@ public:
     void resetInaccessCount();
 
     // setters
+    void setSocket(const int&);
     void setRoomId(const int&);
     void setNick(const std::string&);
     void setState(State s);
 
     // getters
+    [[nodiscard]] const std::string& getIpAddr() const;
     [[nodiscard]] const int& getSocket() const;
     [[nodiscard]] const int& getRoomId() const;
     [[nodiscard]] const std::string& getNick() const;

@@ -56,7 +56,7 @@ int ClientManager::routeRequest(Client& client, request& rqst) {
             // key is ok
             rqst.pop();
 
-            processed = this->requestConnect(client, state, rqst.front());
+            processed = this->requestConnect(client, rqst.front(), state);
         }
         // move in game request
         else if (key == Protocol::CC_MOVE && (state == PlayingOnTurn || state == Pinged)) {
@@ -100,6 +100,58 @@ int ClientManager::routeRequest(Client& client, request& rqst) {
 
 /******************************************************************************
  *
+ * 	TODO
+ *
+ */
+void ClientManager::handleReconnection(Client& client, clientsIterator& client_other_ipaddr) {
+    State client_other_ipaddr_state = client_other_ipaddr->getState();
+
+    // possible state, when client application finds out, that it is without internet
+    // for less than one server ping period, so it sends a connect request, but server did not marked
+    // the client as Pinged... or somebody is again sending messages with telnet
+    if (client_other_ipaddr_state == Waiting || client_other_ipaddr_state == PlayingOnTurn || client_other_ipaddr_state == PlayingOnStand) {
+        this->sendToClient(client, Protocol::SC_NICK_USED);
+    }
+        // short inaccessibility reconnection (without stealing from expired instance)
+    else if (client_other_ipaddr_state == Pinged || client_other_ipaddr_state == Lost) {
+        client.setState(client.getStateLast());
+
+        // client was in Lobby -- send message about being back in Lobby
+        if (client.getRoomId() == 0) {
+            this->sendToClient(client, this->composeMsgInLobbyRecn());
+        }
+            // client was in game -- send message about being back in game
+        else {
+            this->sendToClient(client, this->composeMsgInGameRecn(client));
+        }
+    }
+        // long inaccessibility reconnection -- state Disconnected (with stealing from expired instance)
+    else {
+        // set last state before disconnection
+        client.setState(client_other_ipaddr->getStateLast());
+        // set room id before disconnection
+        client.setRoomId(client_other_ipaddr->getRoomId());
+
+        // client was in Lobby -- send message about being back in Lobby
+        if (client.getRoomId() == 0) {
+            this->sendToClient(client, this->composeMsgInLobbyRecn());
+        }
+        else {
+            // if client was not in Lobby, change pointer in the room to this new reconnected instance
+            this->lobby.reassignPlayerPointer(client);
+            // and send game status
+            this->sendToClient(client, this->composeMsgInGameRecn(client));
+        }
+
+        // socket of expired instance after disconnection is already closed, so it is safe to erase it in this class
+        this->clients.erase(client_other_ipaddr);
+    }
+}
+
+
+/******************************************************************************
+ *
+ *  TODO
  *  If there does not exist any client in vector and current state of client
  *  is either New or Pinged or Lost or Disconnected, then the method sets new nick
  *  and state Waiting to new client. If state is neither of these, client is hacking server
@@ -110,16 +162,19 @@ int ClientManager::routeRequest(Client& client, request& rqst) {
  *  After success 0 is returned, else -1.
  *
  */
-int ClientManager::requestConnect(Client& client, State state, const std::string& nick) {
+int ClientManager::requestConnect(Client& client, const std::string& nick, State state) {
     logger->debug("REQUEST connect VALUE [%s] socket [%d] nick [%s] state [%s].", nick.c_str(), client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
 
     int rv = 0;
 
-    auto itr_end = this->clients.end();
-    auto client_other = this->findClientByNick(nick);
+    auto client_none = this->clients.end();
+    // is there some client with this nick already?
+    auto client_other_nick = this->findClientByNick(nick);
+    // is there some client with this ip address already?
+    auto client_other_ipaddr = this->findClientByIp(client.getIpAddr());
 
-    // no client with this nick exists
-    if (client_other == itr_end) {
+    // no client with this nick exists -- new client
+    if (client_other_nick == client_none) {
         // new client without name
         // client.getStateLast() == New reason:
         //  clients with name already are not able to rename themselves
@@ -141,42 +196,26 @@ int ClientManager::requestConnect(Client& client, State state, const std::string
     }
     // some client already has this nick
     else {
-        // client, who is this request being processed for, is the same client, that has this name -- reconnect request
-        if (client_other->getSocket() == client.getSocket()) {
-            if (state == New || state == Pinged || state == Lost || state == Disconnected) {
-                client.setState(client.getStateLast());
-                client.resetInaccessCount();
 
-                if (client.getState() == Waiting) {
-                    this->sendToClient(client, Protocol::SC_RESP_RECN + Protocol::OP_SEP + Protocol::SC_IN_LOBBY);
-                }
-                else if (client.getState() == PlayingOnTurn || client.getState() == PlayingOnStand) {
-                    // TODO send reconnect message
-//                    this->sendToClient(client, Protocol::SC_RESP_RECN + Protocol::OP_SEP
-//                                               + Protocol::SC_IN_GAME + Protocol::OP_SEP
-//                                               + (client.getState() == PlayingOnTurn ? Protocol::SC_TURN_YOU : Protocol::SC_TURN_OPN) + Protocol::OP_SEP
-//                                               + Protocol::SC_OPN_NAME + Protocol::OP_INI + *this->lobby.getRoomById(client.getRoomId()).
-//                    );
-                }
+        // note: client == client_other_nick
 
-                // TODO full reconnect
-            }
-            // this is rare situation, but still possible
-            else {
-                logger->info("Client [%s] on socket [%d] with state [%s] probably lost connection "
-                             "and tried to reconnect, but was already connected. No problem.",
-                             client.toStringState().c_str(), client.getSocket(), client.getState());
-            }
-        }
-        // client chose same nick, like client on different socket -- name already used
-        else {
+        // client does not have same ip address -- distant client
+        if (client_other_ipaddr == client_none) {
             this->sendToClient(client, Protocol::SC_NICK_USED);
+        }
+        // client has also same ip address -- local client
+        else {
+
+            // note: client == client_other_ipaddr for `if` and `else if`
+            //  in `else`, there really have been created new instance
+            //  and copying its values, and setting pointer to it in game, if client is Playing, is required
+
+            this->handleReconnection(client, client_other_ipaddr);
         }
     }
 
     return rv;
 }
-
 
 
 int ClientManager::requestMove(Client& client, const std::string& coordinates) {
@@ -197,14 +236,6 @@ int ClientManager::requestMove(Client& client, const std::string& coordinates) {
 
         // when game is over, send clients to lobby and destroy their room
         if (this->lobby.getRoomStatus(roomId) == Gameover) {
-            // set states of both players to Waiting
-            onTurn->setState(Waiting);
-            onStand->setState(Waiting);
-
-            // set room id to Lobby"
-            onTurn->setRoomId(0);
-            onStand->setRoomId(0);
-
             // if the game is over, the winner did last move, so looser is now on turn
             this->sendToClient(*onTurn, Protocol::SC_GO_LOSS);
             this->sendToClient(*onStand, Protocol::SC_GO_WIN);
@@ -258,25 +289,35 @@ int ClientManager::requestChat(Client& client, const std::string& message) {
 
 
 void ClientManager::startGame(Client& cli1, Client& cli2) {
-    // set room Id to clients
-    int newId = this->lobby.getRoomsTotal();
-    cli1.setRoomId(newId);
-    cli2.setRoomId(newId);
-
-    // first client will be black, and black starts the game
-    cli1.setState(PlayingOnTurn);
-    cli2.setState(PlayingOnStand);
-
     // send message to players, who just started playing
     this->sendToClient(cli1, this->composeMsgInGame(Protocol::SC_TURN_YOU, cli2.getNick()));
     this->sendToClient(cli2, this->composeMsgInGame(Protocol::SC_TURN_OPN, cli1.getNick()));
 }
 
 
+// ----- COMPOSERS
+
+
 std::string ClientManager::composeMsgInGame(const std::string& turn, const std::string& nick) {
     // eg. {ig,ty,on:nick12}
     return Protocol::SC_IN_GAME + Protocol::OP_SEP + turn + Protocol::OP_SEP
          + Protocol::SC_OPN_NAME + Protocol::OP_INI + nick;
+}
+
+
+std::string ClientManager::composeMsgInGameRecn(const Client& client) {
+    // {rr,ig,ty,op:onick,pf:0..9}
+    return Protocol::SC_RESP_RECN + Protocol::OP_SEP
+           + Protocol::SC_IN_GAME + Protocol::OP_SEP
+           + (client.getState() == PlayingOnTurn ? Protocol::SC_TURN_YOU : Protocol::SC_TURN_OPN) + Protocol::OP_SEP
+           + Protocol::SC_OPN_NAME + Protocol::OP_INI + this->lobby.getOpponentOf(client)->getNick()
+           + Protocol::SC_PLAYFIELD + Protocol::OP_INI + this->lobby.getPlayfieldString(client.getRoomId());
+}
+
+
+std::string ClientManager::composeMsgInLobbyRecn() {
+    // {rr,il}
+    return Protocol::SC_RESP_RECN + Protocol::OP_SEP + Protocol::SC_IN_LOBBY;
 }
 
 
@@ -330,14 +371,19 @@ int ClientManager::process(Client& client, clientData& data) {
 }
 
 
-void ClientManager::createClient(const int& socket) {
+void ClientManager::createClient(const std::string& ip, const int& sock) {
     this->cli_connected += 1;
 
-    this->clients.emplace_back(socket);
+    this->clients.emplace_back(ip, sock);
 }
 
 
 clientsIterator ClientManager::eraseClient(clientsIterator& client) {
+    // before erasing check if client is in game.. if yes, destroy the game
+    if (client->getStateLast() == PlayingOnTurn || client->getStateLast() == PlayingOnTurn) {
+        this->lobby.destroyRoom(client->getRoomId());
+    }
+
     return this->clients.erase(client);
 }
 
@@ -362,7 +408,8 @@ void ClientManager::eraseLongestDisconnectedClient() {
         }
     }
 
-    // always should be true, because it is used after isDisconnectedClient()
+    // always should be true, because it is used after isDisconnectedClient(),
+    // thus there must be client, who is Disconnected
     if (longestDiscCli != this->clients.end()) {
         this->clients.erase(longestDiscCli);
     }
@@ -409,9 +456,8 @@ int ClientManager::sendToClient(Client& client, const std::string& _msg) {
     // increment even when send() was not finished
     this->bytesSend += sent_total;
 
-    // if was unable to send message to client 3 times, mark client as Lost
+    // if was unable to send message to client 3 times
     if (failed_send_count == 0) {
-        client.setState(Lost);
         sent_total = -1;
     }
 
@@ -420,7 +466,7 @@ int ClientManager::sendToClient(Client& client, const std::string& _msg) {
 
 
 void ClientManager::sendToOpponentOf(const Client& client, const std::string& msg) {
-    this->sendToClient(*this->lobby.getOponnentOf(client), msg);
+    this->sendToClient(*this->lobby.getOpponentOf(client), msg);
 }
 
 
@@ -429,6 +475,20 @@ clientsIterator ClientManager::findClientByNick(const std::string& nick) {
 
     for (auto cli = clients.begin(); cli != clients.end(); ++cli) {
         if (cli->getNick() == nick) {
+            wanted = cli;
+            break;
+        }
+    }
+
+    return wanted;
+}
+
+
+clientsIterator ClientManager::findClientByIp(const std::string& ip) {
+    auto wanted = this->clients.end();
+
+    for (auto cli = clients.begin(); cli != clients.end(); ++cli) {
+        if (cli->getIpAddr() == ip) {
             wanted = cli;
             break;
         }
@@ -449,20 +509,6 @@ bool ClientManager::isDisconnectedClient() {
     }
 
     return isDiscCli;
-}
-
-
-bool ClientManager::isClientWithSocket(const int& sock) {
-    bool isCliWSock = false;
-
-    for (auto & client : this->clients) {
-        if (client.getSocket() == sock) {
-            isCliWSock = true;
-            break;
-        }
-    }
-
-    return isCliWSock;
 }
 
 

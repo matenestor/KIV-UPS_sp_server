@@ -57,7 +57,7 @@ namespace Protocol {
     static const std::string SC_OPN_MOVE     ("om"); // opponent's move
     static const std::string SC_OPN_LEAVE    ("ol"); // opponent left the game
     static const std::string SC_OPN_LOST     ("os"); // opponent lost
-    static const std::string SC_OPN_DISC     ("oe"); // opponent disconnected
+    static const std::string SC_OPN_DISC     ("od"); // opponent disconnected
     static const std::string SC_OPN_RECN     ("or"); // opponent reconnected
     static const std::string SC_MANY_CLNT    ("t");  // too many clients message
     static const std::string SC_NICK_USED    ("u");  // nick is already used
@@ -73,8 +73,8 @@ namespace Protocol {
     // server regex -- valid keys and values in subdata: [^:]+
     static const std::regex rgx_key_value(R"([^:]+)");
 
-    // client regex -- valid format:         (?:\{(?:<|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|s|ch:[\w\s.,!?]{1,100})\})+
-    // client regex -- valid data in curly brackets: <|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|oe|or|t|u|k|s|ch:[\w\s.,!?]{1,100}
+    // client regex -- valid format:         (?:\{(?:<|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|od|or|t|u|k|s|ch:[\w\s.!?]{1,100})\})+
+    // client regex -- valid data in curly brackets: <|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|od|or|t|u|k|s|ch:[\w\s.!?]{1,100}
 }
 
 

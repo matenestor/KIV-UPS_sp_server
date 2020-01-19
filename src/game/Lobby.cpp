@@ -56,6 +56,19 @@ void Lobby::createRoom(Client& client1, Client& client2) {
 
 
 void Lobby::destroyRoom(const int& id) {
+    auto onTurn = this->getPlayerOnTurn(id);
+    auto onStand = this->getPlayerOnTurn(id);
+
+    // set states of both players to Waiting and room id to Lobby"
+    if (onTurn != nullptr) {
+        onTurn->setState(Waiting);
+        onTurn->setRoomId(0);
+    }
+    if (onStand != nullptr) {
+        onStand->setState(Waiting);
+        onStand->setRoomId(0);
+    }
+
     this->games.erase(this->getRoomById(id));
 }
 
@@ -68,8 +81,30 @@ bool Lobby::moveInRoom(const int& id, const std::string& coordinates) {
 }
 
 
+void Lobby::reassignPlayerPointer(Client& client) {
+    auto room = this->getRoomById(client.getRoomId());
+
+    // set pointer to new instance to player on turn
+    if (client == *room->getPlayerOnTurn()) {
+        room->reassignPlayerOnTurn(client);
+    }
+    // set pointer to new instance to player on turn
+    else {
+        room->reassignPlayerOnStand(client);
+    }
+}
+
+
 // ----- GETTERS
 
+
+Client* Lobby::getOpponentOf(const Client& client) {
+    // get room where client is
+    auto room = this->getRoomById(client.getRoomId());
+
+    // get other client in room as opponent
+    return client == *room->getPlayerOnTurn() ? room->getPlayerOnStand() : room->getPlayerOnTurn();
+}
 
 const int& Lobby::getRoomsTotal() const {
     return this->roomsTotal;
@@ -87,10 +122,6 @@ Client* Lobby::getPlayerOnStand(const int& id) {
     return this->getRoomById(id)->getPlayerOnStand();
 }
 
-Client* Lobby::getOponnentOf(const Client& client) {
-    // get room where client is
-    auto room = this->getRoomById(client.getRoomId());
-
-    // get other client in room as opponent
-    return client == *room->getPlayerOnTurn() ? room->getPlayerOnStand() : room->getPlayerOnTurn();
+std::string Lobby::getPlayfieldString(const int& id) {
+    return this->getRoomById(id)->getPlayfieldString();
 }

@@ -9,9 +9,10 @@
 
 
 
-Client::Client(const int& s) {
+Client::Client(const std::string& ip, const int& sock) {
     this->cntrPings = LONG_PING;
-    this->socket = s;
+    this->ipAddress = ip;
+    this->socketNum = sock;
     this->roomId = 0;
     this->state = New;
     this->stateLast = New;
@@ -36,7 +37,7 @@ Client::Client(const int& s) {
 
 
 bool operator==(const Client& cli1, const Client& cli2) {
-    return cli1.getSocket() == cli2.getSocket();
+    return cli1.getNick() == cli2.getNick();
 }
 
 void Client::decreaseInaccessCount() {
@@ -49,6 +50,11 @@ void Client::resetInaccessCount() {
 
 
 // ----- SETTERS
+
+
+void Client::setSocket(const int& sock) {
+    this->socketNum = sock;
+}
 
 void Client::setRoomId(const int& id) {
     this->roomId = id;
@@ -65,10 +71,16 @@ void Client::setNick(const std::string& n) {
     this->nick = n;
 }
 
+
 // ----- GETTERS
 
+
+const std::string& Client::getIpAddr() const {
+    return this->ipAddress;
+}
+
 const int& Client::getSocket() const {
-    return this->socket;
+    return this->socketNum;
 }
 
 const int& Client::getRoomId() const {
@@ -104,10 +116,10 @@ std::string Client::toStringState() const {
             state_str = "waiting";
             break;
         case PlayingOnTurn:
-            state_str = "playing -- on turn";
+            state_str = "on turn";
             break;
         case PlayingOnStand:
-            state_str = "playing -- on stand";
+            state_str = "on stand";
             break;
         case Pinged:
             state_str = "pinged";
@@ -129,7 +141,7 @@ std::string Client::toStringState() const {
 std::string Client::toString() const {
     std::stringstream out;
 
-    out << "socket ["     << this->socket
+    out << "socket ["     << this->socketNum
         << "], nick ["    << this->nick
         << "], state ["   << this->toStringState()
         << "], roomId [" << this->roomId

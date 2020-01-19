@@ -2,6 +2,7 @@
 #define ROOM_HNEFATAFL_HPP
 
 #include <string>
+#include <array>
 
 #include "../network/Client.hpp"
 
@@ -10,6 +11,18 @@ enum GameState {
     Playing,
     Gameover
 };
+
+enum Field {
+    F_Empty  = 0,
+    F_Throne = 1,
+    F_Escape = 2,
+    S_Black  = 3,
+    S_White  = 4,
+    S_King   = 5
+};
+
+template <std::size_t N>
+using Playfield = std::array<std::array<Field, N>, N>;
 
 class RoomHnefatafl {
 private:
@@ -28,7 +41,7 @@ private:
     Client* onStand;
 
     /** Playfield. */
-    int pf[SIZE][SIZE];
+    Playfield<SIZE> pf;
 
     /** Swaps player on turn with player on stand. */
     void swapPlayers();
@@ -39,6 +52,11 @@ public:
 
     /** TODO */
     bool move(const std::string&);
+
+    /** Reassign client pointer, who is on turn, to new instance after reconnection. */
+    void reassignPlayerOnTurn(Client&);
+    /** Reassign client pointer, who is on stand, to new instance after reconnection. */
+    void reassignPlayerOnStand(Client&);
 
     // getters
     [[nodiscard]] const int& getRoomId() const;
