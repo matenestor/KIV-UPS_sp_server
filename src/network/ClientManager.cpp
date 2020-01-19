@@ -100,11 +100,19 @@ int ClientManager::routeRequest(Client& client, request& rqst) {
 
 /******************************************************************************
  *
- * 	TODO
+ * 	IF: client is correctly connected, but somebody tries to connect with same name on same IP
+ * 	ELSE IF: client lost connection for a while
+ * 	ELSE: client disconnected and doing reconnection
+ *
+ * 	advice: dont try to understand complete flow, because even i do not
  *
  */
-void ClientManager::handleReconnection(Client& client, clientsIterator& client_other_ipaddr) {
+void ClientManager::handleReconnection(Client& client, clientsIterator& client_other_ipaddr, const std::string& nick) {
     State client_other_ipaddr_state = client_other_ipaddr->getState();
+
+    // note: client == client_other_ipaddr for `if` and `else if`
+    //  in `else`, there really have been created new instance, so copying values of old one,
+    //  and setting pointer to the new one in game, if client is Playing, is required
 
     // possible state, when client application finds out, that it is without internet
     // for less than one server ping period, so it sends a connect request, but server did not marked
@@ -127,24 +135,30 @@ void ClientManager::handleReconnection(Client& client, clientsIterator& client_o
     }
         // long inaccessibility reconnection -- state Disconnected (with stealing from expired instance)
     else {
-        // set last state before disconnection
+        // set nick as before disconnections
+        client.setNick(nick);
+        // set last state as before disconnection
         client.setState(client_other_ipaddr->getStateLast());
-        // set room id before disconnection
+        // set room id as before disconnection
         client.setRoomId(client_other_ipaddr->getRoomId());
+
+        // reset inaccessibility ping count
+        client.resetInaccessCount();
+
+        // this instance will not be used anymore, so set its nick to nothing.. and hope it will get erased safely
+        client_other_ipaddr->setNick("");
 
         // client was in Lobby -- send message about being back in Lobby
         if (client.getRoomId() == 0) {
             this->sendToClient(client, this->composeMsgInLobbyRecn());
         }
         else {
-            // if client was not in Lobby, change pointer in the room to this new reconnected instance
-            this->lobby.reassignPlayerPointer(client);
+            // if client was not in Lobby, change iterator in the room to this new reconnected instance
+            auto toReassign = this->findClientByNick(nick);
+            this->lobby.reassignPlayerIterator(toReassign);
             // and send game status
             this->sendToClient(client, this->composeMsgInGameRecn(client));
         }
-
-        // socket of expired instance after disconnection is already closed, so it is safe to erase it in this class
-        this->clients.erase(client_other_ipaddr);
     }
 }
 
@@ -171,7 +185,7 @@ int ClientManager::requestConnect(Client& client, const std::string& nick, State
     // is there some client with this nick already?
     auto client_other_nick = this->findClientByNick(nick);
     // is there some client with this ip address already?
-    auto client_other_ipaddr = this->findClientByIp(client.getIpAddr());
+    auto client_other_ipaddr = this->findClientByNickAndIp(nick, client.getIpAddr());
 
     // no client with this nick exists -- new client
     if (client_other_nick == client_none) {
@@ -180,7 +194,7 @@ int ClientManager::requestConnect(Client& client, const std::string& nick, State
         //  clients with name already are not able to rename themselves
         // state == Pinged reason:
         //  it is possible that connection request will come after creating client and just before
-        //  receiving pong request, because time between select and Server::updateClient() is not mutexed..
+        //  receiving pong request, because time between select and Server::updateClient() is not mutexed or client might had lost connection
         // state == Lost, Disconnected reason: (hidden reconnection)
         //  nick, which client chose could be used.. client stays connected for how long it is necessary,
         //  in order to choose different nick and without internet it might lead to being Lost or even Disconnected
@@ -205,12 +219,7 @@ int ClientManager::requestConnect(Client& client, const std::string& nick, State
         }
         // client has also same ip address -- local client
         else {
-
-            // note: client == client_other_ipaddr for `if` and `else if`
-            //  in `else`, there really have been created new instance
-            //  and copying its values, and setting pointer to it in game, if client is Playing, is required
-
-            this->handleReconnection(client, client_other_ipaddr);
+            this->handleReconnection(client, client_other_ipaddr, nick);
         }
     }
 
@@ -306,11 +315,13 @@ std::string ClientManager::composeMsgInGame(const std::string& turn, const std::
 
 
 std::string ClientManager::composeMsgInGameRecn(const Client& client) {
+    auto clientIterator = this->findClientByNick(client.getNick());
+
     // {rr,ig,ty,op:onick,pf:0..9}
     return Protocol::SC_RESP_RECN + Protocol::OP_SEP
            + Protocol::SC_IN_GAME + Protocol::OP_SEP
            + (client.getState() == PlayingOnTurn ? Protocol::SC_TURN_YOU : Protocol::SC_TURN_OPN) + Protocol::OP_SEP
-           + Protocol::SC_OPN_NAME + Protocol::OP_INI + this->lobby.getOpponentOf(client)->getNick()
+           + Protocol::SC_OPN_NAME + Protocol::OP_INI + this->lobby.getOpponentOf(clientIterator)->getNick()
            + Protocol::SC_PLAYFIELD + Protocol::OP_INI + this->lobby.getPlayfieldString(client.getRoomId());
 }
 
@@ -465,7 +476,7 @@ int ClientManager::sendToClient(Client& client, const std::string& _msg) {
 }
 
 
-void ClientManager::sendToOpponentOf(const Client& client, const std::string& msg) {
+void ClientManager::sendToOpponentOf(const clientsIterator& client, const std::string& msg) {
     this->sendToClient(*this->lobby.getOpponentOf(client), msg);
 }
 
@@ -489,6 +500,20 @@ clientsIterator ClientManager::findClientByIp(const std::string& ip) {
 
     for (auto cli = clients.begin(); cli != clients.end(); ++cli) {
         if (cli->getIpAddr() == ip) {
+            wanted = cli;
+            break;
+        }
+    }
+
+    return wanted;
+}
+
+
+clientsIterator ClientManager::findClientByNickAndIp(const std::string& nick, const std::string& ip) {
+    auto wanted = this->clients.end();
+
+    for (auto cli = clients.begin(); cli != clients.end(); ++cli) {
+        if (cli->getNick() == nick && cli->getIpAddr() == ip) {
             wanted = cli;
             break;
         }
@@ -526,7 +551,7 @@ void ClientManager::moveWaitingClientsToPlay() {
                 // second Waiting client found
                 if (cli2->getState() == Waiting) {
                     // create game for them
-                    this->lobby.createRoom(*cli1, *cli2);
+                    this->lobby.createRoom(cli1, cli2);
                     // initialize new room
                     this->startGame(*cli1, *cli2);
 
@@ -583,6 +608,11 @@ std::vector<Client>& ClientManager::getVectorOfClients() {
 void ClientManager::setDisconnected(clientsIterator& client) {
     this->cli_disconnected += 1;
     client->setState(Disconnected);
+}
+
+
+void ClientManager::setBadSocket(clientsIterator& client, const int& badsock) {
+    client->setSocket(badsock);
 }
 
 

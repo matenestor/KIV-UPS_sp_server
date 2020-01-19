@@ -49,7 +49,7 @@ roomsIterator Lobby::getRoomById(const int& id) {
 
 
 
-void Lobby::createRoom(Client& client1, Client& client2) {
+void Lobby::createRoom(clientsIterator& client1, clientsIterator& client2) {
     this->roomsTotal += 1;
     this->games.emplace_back(this->roomsTotal, client1, client2);
 }
@@ -60,11 +60,11 @@ void Lobby::destroyRoom(const int& id) {
     auto onStand = this->getPlayerOnTurn(id);
 
     // set states of both players to Waiting and room id to Lobby"
-    if (onTurn != nullptr) {
+    if (onTurn->getState() != Disconnected) {
         onTurn->setState(Waiting);
         onTurn->setRoomId(0);
     }
-    if (onStand != nullptr) {
+    if (onStand->getState() != Disconnected) {
         onStand->setState(Waiting);
         onStand->setRoomId(0);
     }
@@ -81,15 +81,16 @@ bool Lobby::moveInRoom(const int& id, const std::string& coordinates) {
 }
 
 
-void Lobby::reassignPlayerPointer(Client& client) {
-    auto room = this->getRoomById(client.getRoomId());
+void Lobby::reassignPlayerIterator(clientsIterator& client) {
+    auto room = this->getRoomById(client->getRoomId());
 
-    // set pointer to new instance to player on turn
-    if (client == *room->getPlayerOnTurn()) {
+    // clients must be compared by Nick
+    if (client->getNick() == room->getPlayerOnTurn()->getNick()) {
+        // set pointer to new instance to player on turn
         room->reassignPlayerOnTurn(client);
     }
-    // set pointer to new instance to player on turn
     else {
+        // set pointer to new instance to player on stand
         room->reassignPlayerOnStand(client);
     }
 }
@@ -98,12 +99,14 @@ void Lobby::reassignPlayerPointer(Client& client) {
 // ----- GETTERS
 
 
-Client* Lobby::getOpponentOf(const Client& client) {
+clientsIterator& Lobby::getOpponentOf(const clientsIterator& client) {
     // get room where client is
-    auto room = this->getRoomById(client.getRoomId());
+    auto room = this->getRoomById(client->getRoomId());
 
     // get other client in room as opponent
-    return client == *room->getPlayerOnTurn() ? room->getPlayerOnStand() : room->getPlayerOnTurn();
+    return client->getNick() == room->getPlayerOnTurn()->getNick()
+            ? room->getPlayerOnStand()
+            : room->getPlayerOnTurn();
 }
 
 const int& Lobby::getRoomsTotal() const {
@@ -114,11 +117,11 @@ const GameState& Lobby::getRoomStatus(const int& id) {
     return this->getRoomById(id)->getGameStatus();
 }
 
-Client* Lobby::getPlayerOnTurn(const int& id) {
+clientsIterator& Lobby::getPlayerOnTurn(const int& id) {
     return this->getRoomById(id)->getPlayerOnTurn();
 }
 
-Client* Lobby::getPlayerOnStand(const int& id) {
+clientsIterator& Lobby::getPlayerOnStand(const int& id) {
     return this->getRoomById(id)->getPlayerOnStand();
 }
 

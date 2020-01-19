@@ -37,7 +37,6 @@ void pr_help() {
  *
  */
 int main(int argc, char const **argv) {
-    // set logger level
     logger->setLevel(Trace);
 
     // default server parameters

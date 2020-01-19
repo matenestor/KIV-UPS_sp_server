@@ -36,9 +36,8 @@ Client::Client(const std::string& ip, const int& sock) {
 // ---------- PUBLIC METHODS
 
 
-bool operator==(const Client& cli1, const Client& cli2) {
-    return cli1.getNick() == cli2.getNick();
-}
+
+
 
 void Client::decreaseInaccessCount() {
     this->cntrPings -= 1;

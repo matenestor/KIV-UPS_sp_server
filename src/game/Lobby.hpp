@@ -26,21 +26,21 @@ public:
     Lobby();
 
     /** Creates a room with new game. */
-    void createRoom(Client&, Client&);
+    void createRoom(clientsIterator&, clientsIterator&);
     /** Destroys a room with finished game. */
     void destroyRoom(const int&);
     /** Send coordinated to room with given id. */
     bool moveInRoom(const int&, const std::string&);
 
     /** Reassign pointer to client in room -- used in during reconnection of client. */
-    void reassignPlayerPointer(Client&);
+    void reassignPlayerIterator(clientsIterator&);
 
     // getters
-    [[nodiscard]] Client* getOpponentOf(const Client&);
+    [[nodiscard]] clientsIterator& getOpponentOf(const clientsIterator&);
     [[nodiscard]] const int& getRoomsTotal() const;
     [[nodiscard]] const GameState& getRoomStatus(const int&);
-    Client* getPlayerOnTurn(const int&);
-    Client* getPlayerOnStand(const int&);
+    clientsIterator& getPlayerOnTurn(const int&);
+    clientsIterator& getPlayerOnStand(const int&);
     std::string getPlayfieldString(const int&);
 
 };

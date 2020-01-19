@@ -8,16 +8,16 @@
 
 
 
-RoomHnefatafl::RoomHnefatafl(const int& id, Client& pB, Client& pW) {
-    logger->debug("HNEF black [%s] white [%s]", pB.getNick().c_str(), pW.getNick().c_str());
+RoomHnefatafl::RoomHnefatafl(const int& id, clientsIterator& pB, clientsIterator& pW) {
+    logger->debug("HNEF black [%s] white [%s]", pB->getNick().c_str(), pW->getNick().c_str());
 
     // init room id and state
     this->roomId = id;
     this->gameState = Playing;
 
     // black player starts the game
-    this->onTurn = &pB;
-    this->onStand = &pW;
+    this->onTurn = pB;
+    this->onStand = pW;
 
     // set room Id to clients
     this->onTurn->setRoomId(this->roomId);
@@ -79,13 +79,13 @@ bool RoomHnefatafl::move(const std::string& coordinates) {
 }
 
 
-void RoomHnefatafl::reassignPlayerOnTurn(Client& client) {
-    this->onTurn = &client;
+void RoomHnefatafl::reassignPlayerOnTurn(clientsIterator& client) {
+    this->onTurn = client;
 }
 
 
-void RoomHnefatafl::reassignPlayerOnStand(Client& client) {
-    this->onStand = &client;
+void RoomHnefatafl::reassignPlayerOnStand(clientsIterator& client) {
+    this->onStand = client;
 }
 
 
@@ -103,11 +103,11 @@ const GameState& RoomHnefatafl::getGameStatus() const {
     return this->gameState;
 }
 
-Client* RoomHnefatafl::getPlayerOnTurn() const {
+clientsIterator& RoomHnefatafl::getPlayerOnTurn() {
     return this->onTurn;
 }
 
-Client* RoomHnefatafl::getPlayerOnStand() const {
+clientsIterator& RoomHnefatafl::getPlayerOnStand() {
     return this->onStand;
 }
 

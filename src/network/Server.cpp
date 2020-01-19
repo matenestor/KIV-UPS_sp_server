@@ -276,12 +276,22 @@ void Server::closeConnection(clientsIterator& client, const char* reason) {
     // close socket
     close(client->getSocket());
 
+    // this will disconnect client also in server logic, but will keep the instance, so client is able to reconnect
+    // state to disconnected
     this->mngClient.setDisconnected(client);
+    // and socket to invalid one
+    this->mngClient.setBadSocket(client, -1);
+
     State stateLast = client->getStateLast();
 
     // if client was playing, send massage to opponent about disconnection
     if (stateLast == PlayingOnTurn || stateLast == PlayingOnStand) {
-        this->mngClient.sendToOpponentOf(*client, Protocol::SC_OPN_DISC);
+        this->mngClient.sendToOpponentOf(client, Protocol::SC_OPN_DISC);
+    }
+
+    // erase client if one is without name, in order to prevent useless instances on server
+    if (client->getNick() == "") {
+        this->mngClient.eraseClient(client);
     }
 
     logger->info("Client [%s] with ip [%s] on socket [%d] closed [%s], [%s]", client->getNick().c_str(), client->getIpAddr().c_str(), client->getSocket(), reason, std::strerror(errno));
@@ -405,7 +415,7 @@ void Server::pingClients() {
 
                 // if stateLast was Playing*, send massage to opponent about Lost
                 if (stateLast == PlayingOnTurn || stateLast == PlayingOnStand) {
-                    this->mngClient.sendToOpponentOf(*client, Protocol::SC_OPN_LOST);
+                    this->mngClient.sendToOpponentOf(client, Protocol::SC_OPN_LOST);
                 }
 
                 logger->debug("Socket [%d] nick [%s] state [%s] is alredy Pinged -> Lost.", client->getSocket(), client->getNick().c_str(), client->toStringState().c_str());

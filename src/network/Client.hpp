@@ -41,9 +41,6 @@ public:
 
     Client(const std::string&, const int&);
 
-    /** Compare if two clients are same */
-    friend bool operator==(const Client&, const Client&);
-
     /** Decreases counter during long inaccessibility. */
     void decreaseInaccessCount();
     /** Resets counter of long inaccessibility */

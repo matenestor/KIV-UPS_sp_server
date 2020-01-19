@@ -30,7 +30,7 @@ private:
     int routeRequest(Client&, request&);
 
     /** Handle reconnection. */
-    void handleReconnection(Client&, clientsIterator&);
+    void handleReconnection(Client&, clientsIterator&, const std::string&);
 
     // requests
     int requestConnect(Client&, const std::string&, State);
@@ -66,12 +66,14 @@ public:
     /** Send message to client. */
     int sendToClient(Client&, const std::string&);
     /** Send message to client's opponent, when in game. */
-    void sendToOpponentOf(const Client&, const std::string&);
+    void sendToOpponentOf(const clientsIterator&, const std::string&);
 
     /** Find connected client in private vector by nick. */
     clientsIterator findClientByNick(const std::string&);
     /** Find connected client in private vector by ip address. */
     clientsIterator findClientByIp(const std::string&);
+    /** Find connected client in private vector by both nick and ip address. */
+    clientsIterator findClientByNickAndIp(const std::string&, const std::string&);
 
     /** Finds out, if there are some disconnected clients in vector. */
     bool isDisconnectedClient();
@@ -92,6 +94,7 @@ public:
 
     // setters
     void setDisconnected(clientsIterator&);
+    void setBadSocket(clientsIterator&, const int&);
 
     // printers
     void prAllClients() const;
