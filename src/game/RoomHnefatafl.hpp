@@ -37,9 +37,36 @@ private:
     std::string onTurn;
     /** Player standing by. */
     std::string onStand;
+    /** Black attacker player. */
+    std::string black;
+    /** White defending player. */
+    std::string white;
+
+    /** Position on playfield to move from. */
+    int xFrom, yFrom;
+    /** Position on playfield to move on. */
+    int xTo, yTo;
 
     /** Playfield. */
-    Playfield<SIZE> pf;
+    Playfield<SIZE> pf{};
+
+    /** Check if received coordinated are within playfield. */
+    bool isWithinPf();
+    /** Calls isOrthogonal() and isFreePath(). */
+    bool isMoveable();
+    /** Check if move is orthogonal. */
+    bool isOrthogonal();
+    /** Check if path of the stone is free of other stones. */
+    bool isFreePath();
+
+    /** Parse playfield coordinated from string. */
+    void parseMove(const std::string&);
+    /** Check if requested move is valid */
+    bool isValidMove();
+    /** Move pieces on playfield. */
+    void move();
+    /** Check playfield status after move was made. */
+    void checkMove();
 
     /** Swaps player on turn with player on stand. */
     void swapPlayers();
@@ -48,8 +75,8 @@ public:
 
     RoomHnefatafl(const int&, const std::string&, const std::string&);
 
-    /** TODO */
-    bool move(const std::string&);
+    /** Process requested move of played. */
+    bool processMove(const std::string&);
 
     // getters
     [[nodiscard]] const int& getRoomId() const;

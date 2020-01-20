@@ -94,7 +94,7 @@ void Lobby::destroyRoom(const int& id, Client& client1, Client& client2) {
 
 bool Lobby::moveInRoom(const int& id, const std::string& coordinates) {
     auto room = this->getRoomById(id);
-    bool moved = room->move(coordinates);
+    bool moved = room->processMove(coordinates);
 
     return moved;
 }
