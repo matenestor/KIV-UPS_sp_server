@@ -324,8 +324,9 @@ int ClientManager::requestPong(Client& client) {
 }
 
 
-int ClientManager::requestChat(Client& client, const std::string& message) {
-    // TODO reply to opponent
+int ClientManager::requestChat(Client& client, const std::string& _msg) {
+    std::string msg = Protocol::OP_CHAT + Protocol::OP_INI + _msg;
+    this->sendToOpponentOf(client, msg);
 
     return 0;
 }
