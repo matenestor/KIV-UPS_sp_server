@@ -24,6 +24,10 @@ private:
     constexpr static const int LONGEST_MSG = 106;
     /** Ping messages period in milliseconds. */
     constexpr static const int PING_PERIOD = 10000;
+    /** Seconds before timeout = PING_PERIOD - 1 seconds.*/
+    constexpr static const int TIMEOUT_SEC = (int) (PING_PERIOD/1000) - 1;
+    /** Microseconds before timeout. */
+    constexpr static const int TIMEOUT_USEC = 1;
 
     /** Manages connected clients. */
     ClientManager mngClient;

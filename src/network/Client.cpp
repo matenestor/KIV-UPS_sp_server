@@ -10,6 +10,9 @@
 
 
 Client::Client(const std::string& ip, const int& sock) {
+    this->flagToDisconnect = false;
+    this->flagToErase = false;
+    this->discReason = "none";
     this->cntrPings = LONG_PING;
     this->ipAddress = ip;
     this->socketNum = sock;
@@ -74,6 +77,15 @@ void Client::setNick(const std::string& n) {
     this->nick = n;
 }
 
+void Client::setFlagToDisconnect(const bool& value, const std::string& reason) {
+    this->flagToDisconnect = value;
+    this->discReason = reason;
+}
+
+void Client::setFlagToErase(const bool& value) {
+    this->flagToErase = value;
+}
+
 
 // ----- GETTERS
 
@@ -104,6 +116,18 @@ State Client::getStateLast() const {
 
 const int& Client::getInaccessCount() const {
     return this->cntrPings;
+}
+
+const bool& Client::getFlagToDisconnect() const {
+    return this->flagToDisconnect;
+}
+
+const bool& Client::getFlagToErase() const {
+    return this->flagToErase;
+}
+
+const char* Client::getReason() const {
+    return this->discReason.c_str();
 }
 
 // ----- PRINTERS
@@ -147,8 +171,8 @@ std::string Client::toString() const {
     out << "socket ["     << this->socketNum
         << "], nick ["    << this->nick
         << "], state ["   << this->toStringState()
-        << "], roomId [" << this->roomId
-        << "]";
+        << "], roomId ["  << this->roomId
+        << "]" << std::endl;
 
     return out.str();
 }

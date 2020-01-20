@@ -82,13 +82,13 @@ void Lobby::destroyRoom(const int& id, Client& client1, Client& client2) {
     // erase room only, when client is not in Lobby
     if (id != 0) {
         this->games.erase(this->getRoomById(id));
+
+        logger->info("Room id [%d] destroyed.", id);
     }
 
     // set client's room id to Lobby
     client1.setRoomId(0);
     client2.setRoomId(0);
-
-    logger->info("Room id [%d] destroyed.", id);
 }
 
 

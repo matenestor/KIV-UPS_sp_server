@@ -19,9 +19,12 @@ private:
     /** Vector of clients. */
     std::vector<Client> clients;
 
-    // connected, disconnected and reconnected clients
+    /** Increased after creating new client instance. */
     int cli_connected;
+    /** Increased after closing client connection.
+     * (short -> long inaccessibility, Lost -> Disconnected) */
     int cli_disconnected;
+    /** Increased after client reconnect from both short and long inaccessibility. */
     int cli_reconnected;
 
     /** Total sent bytes. ClientManager is only sending. */
@@ -98,7 +101,7 @@ public:
     void setBadSocket(clientsIterator&, const int&);
 
     // printers
-    void prAllClients() const;
+    [[nodiscard]] std::string toStringAllClients() const;
 };
 
 #endif

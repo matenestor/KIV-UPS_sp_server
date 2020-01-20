@@ -157,6 +157,8 @@ void ClientManager::handleReconnection(Client& client, clientsIterator& clientOt
 
         // this instance will not be used anymore, so set its nick to nothing
         clientOtherIpaddr->setNick("");
+        // and set erase flag
+        clientOtherIpaddr->setFlagToErase(true);
 
         // client was in Lobby -- send message about being back in Lobby
         if (client.getRoomId() == 0) {
@@ -355,8 +357,6 @@ std::string ClientManager::composeMsgInGame(const std::string& turn, const std::
 
 
 std::string ClientManager::composeMsgInGameRecn(Client& client) {
-    auto clientIterator = this->findClientByNick(client.getNick());
-
     // {rr,ig,ty,op:onick,pf:0..9}
     return Protocol::SC_RESP_RECN + Protocol::OP_SEP
            + Protocol::SC_IN_GAME + Protocol::OP_SEP
@@ -441,6 +441,7 @@ clientsIterator ClientManager::eraseClient(clientsIterator& client) {
             if (opponent->getState() != Disconnected) {
                 // send message to opponent, that the client can't reconnect anymore
                 this->sendToClient(*opponent, Protocol::SC_OPN_GONE);
+                this->sendToClient(*client, Protocol::SC_IN_LOBBY);
             }
 
             // destroy their room
@@ -456,7 +457,7 @@ clientsIterator ClientManager::eraseClient(clientsIterator& client) {
 
 
 void ClientManager::eraseLongestDisconnectedClient() {
-    // TODO longterm: how to write this with <algorithm>
+    // TO-DO longterm: how to write this with <algorithm>
 
     auto longestDiscCli = this->clients.end();
 
@@ -698,12 +699,16 @@ void ClientManager::setBadSocket(clientsIterator& client, const int& badsock) {
 
 // ----- PRINTERS
 
-void ClientManager::prAllClients() const {
-    logger->debug("--- Printing all clients. ---");
+std::string ClientManager::toStringAllClients() const {
+    std::stringstream ss;
+
+    ss << "\n--- Printing all clients. ---\n";
 
     for (const auto& client : clients) {
-        logger->debug(client.toString().c_str());
+        ss << client.toString();
     }
 
-    logger->debug("--- Printing all clients. --- DONE");
+    ss << "--- Printing all clients. --- DONE" << std::endl;
+
+    return ss.str();
 }
