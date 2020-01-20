@@ -50,23 +50,33 @@ private:
     /** Playfield. */
     Playfield<SIZE> pf{};
 
+    /** Parse playfield coordinated from string. */
+    void parseMove(const std::string&);
+
+    /** Check if requested move is valid */
+    bool isValidMove();
     /** Check if received coordinated are within playfield. */
     bool isWithinPf();
-    /** Calls isOrthogonal() and isFreePath(). */
-    bool isMoveable();
     /** Check if move is orthogonal. */
     bool isOrthogonal();
     /** Check if path of the stone is free of other stones. */
     bool isFreePath();
 
-    /** Parse playfield coordinated from string. */
-    void parseMove(const std::string&);
-    /** Check if requested move is valid */
-    bool isValidMove();
     /** Move pieces on playfield. */
     void move();
+
     /** Check playfield status after move was made. */
     void checkMove();
+    /** Check warrior stones captures. */
+    void checkCaptureWarrior(const Field&);
+    /** Check if black stone is surrounded. */
+    bool isSurroundedBlack(const Field&, const Field&);
+    /** Check if white stone is surrounded. */
+    bool isSurroundedWhite(const Field&, const Field&);
+    /** Check King stone capture. */
+    bool isCapturedKing();
+    /** Check if King stone is surrounded. */
+    bool isSurroundedKing(const int&, const int&);
 
     /** Swaps player on turn with player on stand. */
     void swapPlayers();
