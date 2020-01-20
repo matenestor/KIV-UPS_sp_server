@@ -295,16 +295,18 @@ int ClientManager::requestMove(Client& client, const std::string& coordinates) {
 
 
 int ClientManager::requestLeave(Client& client) {
-    int rv = 0;
+    // notify opponent about client Leaving and move them to Lobby
+    this->sendToOpponentOf(client, Protocol::SC_OPN_LEAVE);
+    // destroy their game, because one player does not want to play anymore
+    auto opponent = this->findClientByNick(this->lobby.getOpponentOf(client));
+    this->lobby.destroyRoom(client.getRoomId(), client, *opponent);
 
-    // TODO notify opponent about client Leaving, move opponent to Lobby, and quit their game
-
-    return rv;
+    return 0;
 }
 
 
 int ClientManager::requestPing(Client& client, State state) {
-    logger->debug("PING request socket [%d] nick [%s] state [%s].", client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
+    logger->trace("PING request socket [%d] nick [%s] state [%s].", client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
 
     if (state == Pinged || state == Lost) {
         client.setState(client.getStateLast());
@@ -316,7 +318,7 @@ int ClientManager::requestPing(Client& client, State state) {
 
 
 int ClientManager::requestPong(Client& client) {
-    logger->debug("PONG request socket [%d] nick [%s] state [%s].", client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
+    logger->trace("PONG request socket [%d] nick [%s] state [%s].", client.getSocket(), client.getNick().c_str(), client.toStringState().c_str());
 
     client.setState(client.getStateLast());
 
