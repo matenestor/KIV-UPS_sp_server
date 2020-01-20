@@ -66,6 +66,10 @@ void Client::setState(State s) {
     this->state = s;
 }
 
+void Client::setStateLast(State s) {
+    this->stateLast = s;
+}
+
 void Client::setNick(const std::string& n) {
     this->nick = n;
 }

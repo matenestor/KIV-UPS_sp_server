@@ -1,8 +1,9 @@
 #ifndef CLIENTMANAGER_HPP
 #define CLIENTMANAGER_HPP
 
-#include "../game/Lobby.hpp"
+#include <vector>
 
+#include "../game/Lobby.hpp"
 #include "Client.hpp"
 #include "protocol.hpp"
 
@@ -41,12 +42,12 @@ private:
     int requestChat(Client&, const std::string&);
 
     /** Sets Id and State to clients, who starts to play.. */
-    void startGame(Client& cli1, Client& cli2);
+    void startGame(const int&, Client& cli1, Client& cli2);
 
     /** Compose message, which is send to client, who just entered a game. */
     std::string composeMsgInGame(const std::string&, const std::string&);
     /** Compose message, which is send to client, who have been reconnected to game. */
-    std::string composeMsgInGameRecn(const Client&);
+    std::string composeMsgInGameRecn(Client&);
     /** Compose message, which is send to client, who have been reconnected to lobby. */
     std::string composeMsgInLobbyRecn();
 
@@ -66,12 +67,12 @@ public:
     /** Send message to client. */
     int sendToClient(Client&, const std::string&);
     /** Send message to client's opponent, when in game. */
-    void sendToOpponentOf(const clientsIterator&, const std::string&);
+    void sendToOpponentOf(Client&, const std::string&);
 
     /** Find connected client in private vector by nick. */
     clientsIterator findClientByNick(const std::string&);
-    /** Find connected client in private vector by ip address. */
-    clientsIterator findClientByIp(const std::string&);
+//    /** Find connected client in private vector by ip address. */
+//    clientsIterator findClientByIp(const std::string&);
     /** Find connected client in private vector by both nick and ip address. */
     clientsIterator findClientByNickAndIp(const std::string&, const std::string&);
 
@@ -89,7 +90,7 @@ public:
     [[nodiscard]] const int& getBytesSend() const;
     [[nodiscard]] const int& getRoomsTotal() const;
 
-    /** Access to private vector of clients. */
+    /** Access to private list of clients. */
     std::vector<Client>& getVectorOfClients();
 
     // setters

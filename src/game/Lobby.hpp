@@ -3,10 +3,9 @@
 
 #include <vector>
 
+#include "../network/Client.hpp"
 #include "RoomHnefatafl.hpp"
 
-
-class Client;
 
 using roomsIterator = std::vector<RoomHnefatafl>::iterator;
 
@@ -26,21 +25,18 @@ public:
     Lobby();
 
     /** Creates a room with new game. */
-    void createRoom(clientsIterator&, clientsIterator&);
+    int createRoom(const std::string&, const std::string&);
     /** Destroys a room with finished game. */
-    void destroyRoom(const int&);
+    void destroyRoom(const int&, Client&, Client&);
     /** Send coordinated to room with given id. */
     bool moveInRoom(const int&, const std::string&);
 
-    /** Reassign pointer to client in room -- used in during reconnection of client. */
-    void reassignPlayerIterator(clientsIterator&);
-
     // getters
-    [[nodiscard]] clientsIterator& getOpponentOf(const clientsIterator&);
+    [[nodiscard]] std::string getOpponentOf(Client&);
     [[nodiscard]] const int& getRoomsTotal() const;
     [[nodiscard]] const GameState& getRoomStatus(const int&);
-    clientsIterator& getPlayerOnTurn(const int&);
-    clientsIterator& getPlayerOnStand(const int&);
+    std::string getNickofPlayerOnTurn(const int&);
+    std::string getNickofPlayerOnStand(const int&);
     std::string getPlayfieldString(const int&);
 
 };

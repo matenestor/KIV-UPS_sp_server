@@ -83,7 +83,7 @@ void Logger::log(const char* severity, const char* buff) {
 }
 
 void Logger::fatal(const char* msg, ...) {
-    if (this->file.is_open() && this->level >= Fatal) {
+    if (this->level >= Fatal && this->file.is_open()) {
         char buff[Logger::BUFF_SIZE];
 
         // format msg in case of arguments
@@ -98,7 +98,7 @@ void Logger::fatal(const char* msg, ...) {
 }
 
 void Logger::error(const char* msg, ...) {
-    if (this->file.is_open() && this->level >= Error) {
+    if (this->level >= Error && this->file.is_open()) {
         char buff[Logger::BUFF_SIZE];
 
         // format msg in case of arguments
@@ -113,7 +113,7 @@ void Logger::error(const char* msg, ...) {
 }
 
 void Logger::warning(const char* msg, ...) {
-    if (this->file.is_open() && this->level >= Warning) {
+    if (this->level >= Warning && this->file.is_open()) {
         char buff[Logger::BUFF_SIZE];
 
         // format msg in case of arguments
@@ -128,7 +128,7 @@ void Logger::warning(const char* msg, ...) {
 }
 
 void Logger::info(const char* msg, ...) {
-    if (this->file.is_open() && this->level >= Info) {
+    if (this->level >= Info && this->file.is_open()) {
         char buff[Logger::BUFF_SIZE];
 
         // format msg in case of arguments
@@ -143,7 +143,7 @@ void Logger::info(const char* msg, ...) {
 }
 
 void Logger::debug(const char* msg, ...) {
-    if (this->file.is_open() && this->level >= Debug) {
+    if (this->level >= Debug && this->file.is_open()) {
         char buff[Logger::BUFF_SIZE];
 
         // format msg in case of arguments
@@ -158,7 +158,7 @@ void Logger::debug(const char* msg, ...) {
 }
 
 void Logger::trace(const char* msg, ...) {
-    if (this->file.is_open() && this->level == Trace) {
+    if (this->level == Trace && this->file.is_open()) {
         char buff[Logger::BUFF_SIZE];
 
         // format msg in case of arguments

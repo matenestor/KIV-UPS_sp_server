@@ -3,12 +3,7 @@
 
 #include <string>
 #include <array>
-#include <vector>
 
-#include "../network/Client.hpp"
-
-
-using clientsIterator = std::vector<Client>::iterator;
 
 enum GameState {
     Playing,
@@ -39,9 +34,9 @@ private:
     GameState gameState;
 
     /** Player on turn. */
-    clientsIterator onTurn;
+    std::string onTurn;
     /** Player standing by. */
-    clientsIterator onStand;
+    std::string onStand;
 
     /** Playfield. */
     Playfield<SIZE> pf;
@@ -51,21 +46,16 @@ private:
 
 public:
 
-    RoomHnefatafl(const int&, clientsIterator&, clientsIterator&);
+    RoomHnefatafl(const int&, const std::string&, const std::string&);
 
     /** TODO */
     bool move(const std::string&);
 
-    /** Reassign client pointer, who is on turn, to new instance after reconnection. */
-    void reassignPlayerOnTurn(clientsIterator&);
-    /** Reassign client pointer, who is on stand, to new instance after reconnection. */
-    void reassignPlayerOnStand(clientsIterator&);
-
     // getters
     [[nodiscard]] const int& getRoomId() const;
     [[nodiscard]] const GameState& getGameStatus() const;
-    [[nodiscard]] clientsIterator& getPlayerOnTurn();
-    [[nodiscard]] clientsIterator& getPlayerOnStand();
+    [[nodiscard]] std::string getPlayerOnTurn() const;
+    [[nodiscard]] std::string getPlayerOnStand() const;
     [[nodiscard]] std::string getPlayfieldString() const;
 
 };

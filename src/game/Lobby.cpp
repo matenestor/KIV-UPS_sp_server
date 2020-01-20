@@ -1,4 +1,5 @@
 #include "Lobby.hpp"
+#include "../system/Logger.hpp"
 
 // ---------- CONSTRUCTORS & DESTRUCTORS
 
@@ -49,27 +50,45 @@ roomsIterator Lobby::getRoomById(const int& id) {
 
 
 
-void Lobby::createRoom(clientsIterator& client1, clientsIterator& client2) {
+int Lobby::createRoom(const std::string& client1, const std::string& client2) {
     this->roomsTotal += 1;
     this->games.emplace_back(this->roomsTotal, client1, client2);
+
+    return this->roomsTotal;
 }
 
 
-void Lobby::destroyRoom(const int& id) {
-    auto onTurn = this->getPlayerOnTurn(id);
-    auto onStand = this->getPlayerOnTurn(id);
+void Lobby::destroyRoom(const int& id, Client& client1, Client& client2) {
+    State stateClient1 = client1.getState();
+    State stateClient2 = client2.getState();
 
-    // set states of both players to Waiting and room id to Lobby"
-    if (onTurn->getState() != Disconnected) {
-        onTurn->setState(Waiting);
-        onTurn->setRoomId(0);
+    // set states of both players to Waiting according to their connection/disconnection
+    // client 1
+    if (stateClient1 == Pinged || stateClient1 == Lost || stateClient1 == Disconnected) {
+        client1.setStateLast(Waiting);
     }
-    if (onStand->getState() != Disconnected) {
-        onStand->setState(Waiting);
-        onStand->setRoomId(0);
+    else {
+        client1.setState(Waiting);
     }
 
-    this->games.erase(this->getRoomById(id));
+    // client 2
+    if (stateClient2 == Pinged || stateClient2 == Lost || stateClient2 == Disconnected) {
+        client2.setStateLast(Waiting);
+    }
+    else {
+        client2.setState(Waiting);
+    }
+
+    // erase room only, when client is not in Lobby
+    if (id != 0) {
+        this->games.erase(this->getRoomById(id));
+    }
+
+    // set client's room id to Lobby
+    client1.setRoomId(0);
+    client2.setRoomId(0);
+
+    logger->info("Room id [%d] destroyed.", id);
 }
 
 
@@ -81,30 +100,30 @@ bool Lobby::moveInRoom(const int& id, const std::string& coordinates) {
 }
 
 
-void Lobby::reassignPlayerIterator(clientsIterator& client) {
-    auto room = this->getRoomById(client->getRoomId());
-
-    // clients must be compared by Nick
-    if (client->getNick() == room->getPlayerOnTurn()->getNick()) {
-        // set pointer to new instance to player on turn
-        room->reassignPlayerOnTurn(client);
-    }
-    else {
-        // set pointer to new instance to player on stand
-        room->reassignPlayerOnStand(client);
-    }
-}
+//void Lobby::reassignPlayerIterator(clientsIterator& client) {
+//    auto room = this->getRoomById(client->getRoomId());
+//
+//    // clients must be compared by Nick
+//    if (client->getNick() == room->getPlayerOnTurn()->getNick()) {
+//        // set pointer to new instance to player on turn
+//        room->reassignPlayerOnTurn(client);
+//    }
+//    else {
+//        // set pointer to new instance to player on stand
+//        room->reassignPlayerOnStand(client);
+//    }
+//}
 
 
 // ----- GETTERS
 
 
-clientsIterator& Lobby::getOpponentOf(const clientsIterator& client) {
+std::string Lobby::getOpponentOf(Client& client) {
     // get room where client is
-    auto room = this->getRoomById(client->getRoomId());
+    auto room = this->getRoomById(client.getRoomId());
 
     // get other client in room as opponent
-    return client->getNick() == room->getPlayerOnTurn()->getNick()
+    return client.getNick() == room->getPlayerOnTurn()
             ? room->getPlayerOnStand()
             : room->getPlayerOnTurn();
 }
@@ -117,11 +136,11 @@ const GameState& Lobby::getRoomStatus(const int& id) {
     return this->getRoomById(id)->getGameStatus();
 }
 
-clientsIterator& Lobby::getPlayerOnTurn(const int& id) {
+std::string Lobby::getNickofPlayerOnTurn(const int& id) {
     return this->getRoomById(id)->getPlayerOnTurn();
 }
 
-clientsIterator& Lobby::getPlayerOnStand(const int& id) {
+std::string Lobby::getNickofPlayerOnStand(const int& id) {
     return this->getRoomById(id)->getPlayerOnStand();
 }
 

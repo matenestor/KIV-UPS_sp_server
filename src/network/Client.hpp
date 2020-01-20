@@ -18,7 +18,7 @@ enum State {
 class Client {
 private:
     /** Count of pings during long inaccessibility -- duration. */
-    constexpr static const int LONG_PING = 5;
+    constexpr static const int LONG_PING = 2;
 
     /** Counter of long inaccessibility pings. */
     int cntrPings;
@@ -46,12 +46,6 @@ public:
     /** Resets counter of long inaccessibility */
     void resetInaccessCount();
 
-    // setters
-    void setSocket(const int&);
-    void setRoomId(const int&);
-    void setNick(const std::string&);
-    void setState(State s);
-
     // getters
     [[nodiscard]] const std::string& getIpAddr() const;
     [[nodiscard]] const int& getSocket() const;
@@ -60,6 +54,13 @@ public:
     [[nodiscard]] State getState() const;
     [[nodiscard]] State getStateLast() const;
     [[nodiscard]] const int& getInaccessCount() const;
+
+    // setters
+    void setSocket(const int&);
+    void setRoomId(const int&);
+    void setState(State s);
+    void setStateLast(State s);
+    void setNick(const std::string&);
 
     // printers
     [[nodiscard]] std::string toStringState() const;
