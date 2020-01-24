@@ -7,6 +7,7 @@
 enum State {
     New,
     Waiting,
+    Ready,
     PlayingOnTurn,
     PlayingOnStand,
     Pinged,

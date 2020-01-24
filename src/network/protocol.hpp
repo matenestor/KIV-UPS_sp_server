@@ -37,8 +37,8 @@ namespace Protocol {
     static const std::string OP_CHAT    ("ch"); // chat
 
     // client codes
-    static const std::string CC_OK      ("ok"); // message understood by client
     static const std::string CC_CONN    ("c");  // connect
+    static const std::string CC_READY   ("rd"); // ready
     static const std::string CC_MOVE    ("m");  // move
     static const std::string CC_LEAV    ("l");  // leave game
 
@@ -66,11 +66,11 @@ namespace Protocol {
     static const std::string SC_KICK         ("k");  // kick client
     static const std::string SC_SHDW         ("s");  // server shutdown
 
-    // server regex -- valid format:            (?:\{(?:<|>|c:\w{3,20}|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})\})+
-    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})\})+)");
+    // server regex -- valid format:            (?:\{(?:<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})\})+
+    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})\})+)");
 
-    // server regex -- valid data:      <|>|c:\w{3,20}|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100}    ..in curly brackets
-    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})");
+    // server regex -- valid data:      <|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100}    ..in curly brackets
+    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})");
 
     // server regex -- valid keys and values in subdata: [^:]+
     static const std::regex rgx_key_value(R"([^:]+)");

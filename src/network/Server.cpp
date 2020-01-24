@@ -241,7 +241,7 @@ void Server::updateClients(fd_set& fds_read, fd_set& fds_except) {
     }
 
     // check clients, who are Waiting for a game
-    this->mngClient.moveWaitingClientsToPlay();
+    this->mngClient.moveReadyClientsToPlay();
 }
 
 

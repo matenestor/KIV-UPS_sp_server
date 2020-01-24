@@ -58,6 +58,10 @@ int ClientManager::routeRequest(Client& client, request& rqst) {
 
             processed = this->requestConnect(client, rqst.front(), state);
         }
+        // client is ready to play a game
+        else if (key == Protocol::CC_READY && (state == Waiting || state == Pinged)) {
+            processed = this->requestReady(client);
+        }
         // move in game request
         else if (key == Protocol::CC_MOVE && (state == PlayingOnTurn || state == Pinged)) {
             // key is ok
@@ -76,10 +80,6 @@ int ClientManager::routeRequest(Client& client, request& rqst) {
         // pong acknowledge (pong may still come after short inaccessibility)
         else if (key == Protocol::OP_PONG) {
             processed = this->requestPong(client);
-        }
-        // response, that client understands, what server told
-        else if (key == Protocol::CC_OK) {
-            // just to have response to everything
         }
         // chat message
         else if (key == Protocol::OP_CHAT && (state == PlayingOnTurn || state == PlayingOnStand || state == Pinged)) {
@@ -239,6 +239,13 @@ int ClientManager::requestConnect(Client& client, const std::string& nick, State
     }
 
     return rv;
+}
+
+
+int ClientManager::requestReady(Client& client) {
+    client.setState(Ready);
+
+    return 0;
 }
 
 
@@ -621,19 +628,19 @@ bool ClientManager::isDisconnectedClient() {
 
 /******************************************************************************
  *
- * 	Finds every two Waiting clients and sends them to play a game in time O(n).
+ * 	Finds every two Ready clients and sends them to play a game in time O(n).
  *
  */
-void ClientManager::moveWaitingClientsToPlay() {
+void ClientManager::moveReadyClientsToPlay() {
     int roomId = 0;
 
     for (auto cli1 = this->clients.begin(); cli1 != this->clients.end(); ++cli1) {
         // first Waiting client found
-        if (cli1->getState() == Waiting) {
+        if (cli1->getState() == Ready) {
 
             for (auto cli2 = cli1 + 1; cli2 != this->clients.end(); ++cli2) {
                 // second Waiting client found
-                if (cli2->getState() == Waiting) {
+                if (cli2->getState() == Ready) {
                     // create game for them
                     roomId = this->lobby.createRoom(cli1->getNick(), cli2->getNick());
                     // initialize new room

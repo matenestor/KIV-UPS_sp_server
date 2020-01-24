@@ -142,6 +142,9 @@ std::string Client::toStringState() const {
         case Waiting:
             state_str = "waiting";
             break;
+        case Ready:
+            state_str = "ready";
+            break;
         case PlayingOnTurn:
             state_str = "on turn";
             break;

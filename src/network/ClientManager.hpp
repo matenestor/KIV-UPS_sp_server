@@ -38,6 +38,7 @@ private:
 
     // requests
     int requestConnect(Client&, const std::string&, State);
+    int requestReady(Client&);
     int requestMove(Client&, const std::string&);
     int requestLeave(Client&);
     int requestPing(Client&, State);
@@ -83,7 +84,7 @@ public:
     bool isDisconnectedClient();
 
     /** Checks Waiting clients and tells Lobby to send them to game. */
-    void moveWaitingClientsToPlay();
+    void moveReadyClientsToPlay();
 
     // getters
     [[nodiscard]] int getCountClients() const;
