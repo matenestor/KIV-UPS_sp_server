@@ -64,23 +64,41 @@ bool RoomHnefatafl::isOrthogonal() {
 
 
 bool RoomHnefatafl::isFreePath() {
-    int i;
+    int i, shift;
     bool freePath = true;
 
     // horizontal move
-    if (xFrom == xTo) {
-        for (i = xFrom; i < xTo; ++i) {
-            if (pf[yFrom][i] != F_Escape || pf[yFrom][i] != F_Throne) {
+    if (yFrom == yTo) {
+        // move right or left
+        shift = xFrom < xTo ? 1 : -1;
+
+        // field next to the one, which is being moved from
+        i = xFrom + shift;
+        // while not on end position
+        while (i != xTo) {
+            // if place is not empty and throne, it has to be something else,
+            // so path is not free, thus invalid move was received by client
+            if (pf[yFrom][i] != F_Empty && pf[yFrom][i] != F_Throne) {
                 freePath = false;
+                break;
             }
+            i += shift;
         }
     }
+
     // vertical move
-    else if (yFrom == yTo) {
-        for (i = yFrom; i < yTo; ++i) {
-            if (pf[i][xFrom] != F_Escape || pf[i][xFrom] != F_Throne) {
+    else if (xFrom == xTo) {
+        // move down or up
+        shift = yFrom < yTo ? 1 : -1;
+
+        i = yFrom + shift;
+
+        while (i != yTo) {
+            if (pf[i][xFrom] != F_Empty && pf[i][xFrom] != F_Throne) {
                 freePath = false;
+                break;
             }
+            i += shift;
         }
     }
 
@@ -92,7 +110,7 @@ bool RoomHnefatafl::isFreePath() {
 
 
 void RoomHnefatafl::parseMove(const std::string& coorStr) {
-    // parse move coordinates message
+    // parse move coordinates message according to the protocol
     this->xFrom = std::stoi(coorStr.substr(0, 2));
     this->yFrom = std::stoi(coorStr.substr(2, 2));
     this->xTo   = std::stoi(coorStr.substr(4, 2));
@@ -150,7 +168,7 @@ void RoomHnefatafl::move() {
 }
 
 
-void RoomHnefatafl::checkMove() {
+void RoomHnefatafl::checkCaptures() {
     // king was moved
     if (pf[yTo][xTo] == S_King) {
         // King is corner, which is Escape field -- White wins
@@ -160,85 +178,60 @@ void RoomHnefatafl::checkMove() {
     }
     // white defender was moved
     else if (pf[yTo][xTo] == S_White) {
-        this->checkCaptureWarrior(S_Black);
+        this->checkCaptureWarrior(&RoomHnefatafl::isSurroundedBlack);
     }
     // black attacker was moved
     else if (pf[yTo][xTo] == S_Black) {
+        this->checkCaptureWarrior(&RoomHnefatafl::isSurroundedWhite);
+
         // black captured the white King
         if (this->isCapturedKing()) {
             this->gameState = Gameover;
-        }
-        else {
-            this->checkCaptureWarrior(S_White);
         }
     }
 }
 
 
-void RoomHnefatafl::checkCaptureWarrior(const Field& toCapture) {
-    // going to capture black warrior
-    if (toCapture == S_Black) {
-        // rather first check if the position is really not out of bounds,
-        // do not combine there two conditions (same goes for other conditions here)
-        if ((xTo + 2) < SIZE) {
-            // if stone is captured
-            if (this->isSurroundedBlack(pf[yTo][xTo + 1], pf[yTo][xTo + 2])) {
-                // capture it
-                pf[yTo][xTo + 1] = F_Empty;
-            }
-        }
-        if ((xTo - 2) >= 0) {
-            if (this->isSurroundedBlack(pf[yTo][xTo - 1], pf[yTo][xTo - 2])) {
-                pf[yTo][xTo - 1] = F_Empty;
-            }
-        }
-        if ((yTo + 2) < SIZE) {
-            if (this->isSurroundedBlack(pf[yTo + 1][xTo], pf[yTo + 2][xTo])) {
-                pf[yTo + 1][xTo] = F_Empty;
-            }
-        }
-        if ((yTo - 2) >= 0) {
-            if (this->isSurroundedBlack(pf[yTo - 1][xTo], pf[yTo - 2][xTo])) {
-                pf[yTo - 1][xTo] = F_Empty;
-            }
+void RoomHnefatafl::checkCaptureWarrior(bool (RoomHnefatafl::*surrounded)(const Field&, const Field&)) {
+    // rather first check if the position is really not out of bounds,
+    // do not combine there two conditions (same goes for other conditions here)
+    if ((xTo + 2) < SIZE) {
+        // if stone is captured
+        if ((this->*surrounded)(pf[yTo][xTo + 1], pf[yTo][xTo + 2])) {
+            // capture it
+            pf[yTo][xTo + 1] = F_Empty;
         }
     }
-    // going to capture white warrior
-    else {
-        if ((xTo + 2) < SIZE) {
-            if (this->isSurroundedWhite(pf[yTo][xTo + 1], pf[yTo][xTo + 2])) {
-                pf[yTo][xTo + 1] = F_Empty;
-            }
+    if ((xTo - 2) >= 0) {
+        if ((this->*surrounded)(pf[yTo][xTo - 1], pf[yTo][xTo - 2])) {
+            pf[yTo][xTo - 1] = F_Empty;
         }
-        if ((xTo - 2) >= 0) {
-            if (this->isSurroundedWhite(pf[yTo][xTo - 1], pf[yTo][xTo - 2])) {
-                pf[yTo][xTo - 1] = F_Empty;
-            }
+    }
+    if ((yTo + 2) < SIZE) {
+        if ((this->*surrounded)(pf[yTo + 1][xTo], pf[yTo + 2][xTo])) {
+            pf[yTo + 1][xTo] = F_Empty;
         }
-        if ((yTo + 2) < SIZE) {
-            if (this->isSurroundedWhite(pf[yTo + 1][xTo], pf[yTo + 2][xTo])) {
-                pf[yTo + 1][xTo] = F_Empty;
-            }
-        }
-        if ((yTo - 2) >= 0) {
-            if (this->isSurroundedWhite(pf[yTo - 1][xTo], pf[yTo - 2][xTo])) {
-                pf[yTo - 1][xTo] = F_Empty;
-            }
+    }
+    if ((yTo - 2) >= 0) {
+        if ((this->*surrounded)(pf[yTo - 1][xTo], pf[yTo - 2][xTo])) {
+            pf[yTo - 1][xTo] = F_Empty;
         }
     }
 }
 
 
 bool RoomHnefatafl::isSurroundedBlack(const Field& fieldAdjacent, const Field& fieldAlly) {
-    // warrior is between two allied opponent's warriors -> white warrior is captured
+    // warrior is between two allied stones, or next to the warrior
+    // is Throne, or Kings's escape field -> black warrior is captured
     return fieldAdjacent == S_Black && (fieldAlly == S_White || fieldAlly == F_Throne || fieldAlly == F_Escape);
 }
 
 
 bool RoomHnefatafl::isSurroundedWhite(const Field& fieldAdjacent, const Field& fieldAlly) {
-    // warrior is between two allied stones, or next to warrior
-    // is Throne, or Kings's escape field -> black warrior is captured
-    return fieldAdjacent == S_White && fieldAlly == S_Black;
+    // warrior is between two allied stones, or next to the warrior
+    // is Throne, or Kings's escape field -> white warrior is captured
+    // Black player may also capture, when the ally field is Throne or Escape
+    return fieldAdjacent == S_White && (fieldAlly == S_Black || fieldAlly == F_Throne || fieldAlly == F_Escape);
 }
 
 
@@ -251,20 +244,23 @@ bool RoomHnefatafl::isCapturedKing() {
             captured = this->isSurroundedKing(this->yTo, this->xTo + 1);
         }
     }
+
     // on left of the black stone, there is a King
-    else if ((xTo - 1) >= 0) {
+    if ((xTo - 1) >= 0) {
         if (pf[yTo][xTo - 1] == S_King) {
             captured = this->isSurroundedKing(this->yTo, this->xTo - 1);
         }
     }
+
     // down of the black stone, there is a King
-    else if ((yTo + 1) < SIZE) {
+    if ((yTo + 1) < SIZE) {
         if (pf[yTo + 1][xTo] == S_King) {
             captured = this->isSurroundedKing(this->yTo + 1, this->xTo);
         }
     }
+
     // up of the black stone, there is a King
-    else if ((yTo - 1) >= 0) {
+    if ((yTo - 1) >= 0) {
         if (pf[yTo - 1][xTo] == S_King) {
             captured = this->isSurroundedKing(this->yTo - 1, this->xTo);
         }
@@ -279,9 +275,11 @@ bool RoomHnefatafl::isSurroundedKing(const int& y, const int& x) {
     bool surrounded = true;
 
     // right
-    // if this condition is false, then King is on border of playfield and still may be surrounded
+    // if this condition is false, then King is on border of playfield
+    // and still may be surrounded, so check also other directions
     if ((x + 1) < SIZE) {
         // there is some field next to the King and if it is F_Empty or S_White, then King is not captured
+        // note: if the adjacent field is F_Escape or F_Throne, King can be captured
         if (pf[y][x + 1] == F_Empty || pf[y][x + 1] == S_White) {
             surrounded = false;
         }
@@ -342,7 +340,7 @@ bool RoomHnefatafl::processMove(const std::string& coorStr) {
         // then move pieces
         this->move();
         // check situation after move
-        this->checkMove();
+        this->checkCaptures();
         // and swap players
         this->swapPlayers();
         moved = true;

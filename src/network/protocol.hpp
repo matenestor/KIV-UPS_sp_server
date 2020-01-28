@@ -66,17 +66,18 @@ namespace Protocol {
     static const std::string SC_KICK         ("k");  // kick client
     static const std::string SC_SHDW         ("s");  // server shutdown
 
-    // server regex -- valid format:            (?:\{(?:<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})\})+
-    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})\})+)");
+    // note: 'a-zA-Z0-9' instead of '\w' to prevent diacritics
+    // server regex -- valid format:            (?:\{(?:<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[a-zA-Z0-9\s.!?]{1,100})\})+
+    static const std::regex rgx_valid_format(R"((?:\{(?:<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[a-zA-Z0-9\s.!?]{1,100})\})+)");
 
-    // server regex -- valid data:      <|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100}    ..in curly brackets
-    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[\w\s.!?]{1,100})");
+    // server regex -- valid data:      <|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[a-zA-Z0-9\s.!?]{1,100}    ..in curly brackets
+    static const std::regex rgx_data(R"(<|>|c:\w{3,20}|rd|m:\d{8}|l|ok|ch:[a-zA-Z0-9\s.!?]{1,100})");
 
     // server regex -- valid keys and values in subdata: [^:]+
     static const std::regex rgx_key_value(R"([^:]+)");
 
-    // client regex -- valid format:         (?:\{(?:<|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|od|or|og|t|u|k|s|ch:[\w\s.!?]{1,100})\})+
-    // client regex -- valid data in curly brackets: <|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{100}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|od|or|og|t|u|k|s|ch:[\w\s.!?]{1,100}
+    // client regex -- valid format:         (?:\{(?:<|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{121}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|os|od|or|og|t|u|k|s|ch:[a-zA-Z0-9\s.!?]{1,100})\})+
+    // client regex -- valid data in curly brackets: <|>|rc|rr,il|rr,ig,(?:ty|to),on:\w{3,20},pf:\d{121}|rl|il|ig,(?:ty|to),on:\w{3,20}|mv|gw|gl|om:\d{8}|ol|os|od|or|og|t|u|k|s|ch:[a-zA-Z0-9\s.!?]{1,100}
 }
 
 

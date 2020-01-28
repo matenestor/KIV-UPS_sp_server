@@ -302,6 +302,8 @@ int ClientManager::requestMove(Client& client, const std::string& coordinates) {
 
 
 int ClientManager::requestLeave(Client& client) {
+    // reply client with leave game success
+    this->sendToClient(client, Protocol::SC_RESP_LEAVE);
     // notify opponent about client Leaving and move them to Lobby
     this->sendToOpponentOf(client, Protocol::SC_OPN_LEAVE);
     // destroy their game, because one player does not want to play anymore

@@ -66,9 +66,9 @@ private:
     void move();
 
     /** Check playfield status after move was made. */
-    void checkMove();
+    void checkCaptures();
     /** Check warrior stones captures. */
-    void checkCaptureWarrior(const Field&);
+    void checkCaptureWarrior(bool (RoomHnefatafl::*)(const Field&, const Field&));
     /** Check if black stone is surrounded. */
     bool isSurroundedBlack(const Field&, const Field&);
     /** Check if white stone is surrounded. */
