@@ -16,7 +16,7 @@ void server_setup(Defaults&);
 void pr_help() {
     std::cout <<
     "\nGame server of Hnefatafl is runned by thy commands, which follows:\n\n"
-    "Usage: hnefserver [options]\n"
+    "Usage: hnefsrv [options]\n"
     "Options:\n"
     "  -a    IPv4 address                   default: 0.0.0.0\n\n"
     "  -p    Port                           default: 4567\n"
